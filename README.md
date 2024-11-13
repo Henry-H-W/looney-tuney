@@ -1,2 +1,3 @@
 # Looney-Tuney.AI
-![image](https://github.com/user-attachments/assets/a5921866-60cc-4fcc-8c16-ff3253e330c7)
+![image](https://github.com/user-attachments/assets/4a4f382a-6e58-477e-a1a6-559d1d2df243)
+
