@@ -21,7 +21,7 @@ export default function Home() {
           alt="Music Logo"
           width={80}
           height={80}
-          className="rounded-full"
+          className="rounded-full" 
         />
       </div>
 
