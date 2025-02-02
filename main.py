@@ -117,7 +117,7 @@ def insert_note(bar_matrices, key_index, duration, velocity):
 def find_available_row(bar_matrix, key_index, sustain_only):
     """
     Finds the next available row for a note:
-    - If `sustain_only`, look for rows where sustain (2) can start.
+    - If sustain_only, look for rows where sustain (2) can start.
     - If not sustain-only, find an entirely free row.
     """
     for row in range(NUM_KEYS * 2):
@@ -125,14 +125,14 @@ def find_available_row(bar_matrix, key_index, sustain_only):
             return row
         if sustain_only and bar_matrix[row, :, 0].max() == 1:  # Row has an onset already, continue sustain here
             return row
-    return 0  # If no empty row found, use first row (shouldn't happen in practice)
+    return 0
 
 # Save the matrix representation to a file
 def save_matrix_to_file(matrix_representation, filename="matrix_output.txt"):
-    with open(filename, "w", encoding="utf-8") as f:  # Specify UTF-8 encoding
+    with open(filename, "w", encoding="utf-8") as f:
         for bar_idx, bar in enumerate(matrix_representation):
             f.write(f"\nBar {bar_idx}:\n")
-            for row in range(NUM_KEYS * 2):  # Twice the rows to allow sustain starts
+            for row in range(NUM_KEYS * 2):
                 row_data = " ".join([f"{int(bar[row, col, 0])}/{int(bar[row, col, 1])}" for col in range(SUBDIVISIONS)])
                 f.write(row_data + "\n")
     print(f"Matrix saved to {filename}")
