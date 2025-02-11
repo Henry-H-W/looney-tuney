@@ -39,3 +39,58 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore virtual environment folders
+venv/
+.venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore logs and database files
+logs/
+*.log
+*.sqlite3
+
+# Ignore environment variables and config files
+.env
+.env.local
+.env.production
+.env.development
+
+# Ignore package management files
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Ignore PyCharm IDE settings (optional)
+.idea/
+
+# Ignore VS Code settings (optional)
+.vscode/
+
+# Ignore coverage reports
+htmlcov/
+.coverage
+*.cover
+*.coverage.*
+
+# Ignore compiled binary files
+*.so
+*.dll
+*.dylib
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore Flask instance and migrations folder (if using Flask)
+instance/
+migrations/
+
+# Ignore any generated output MIDI files
+output.mid
