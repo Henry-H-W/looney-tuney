@@ -1,0 +1,10 @@
+numpy
+pandas
+matplotlib
+os-sys
+glob2
+pickle-mixin
+music21
+keras
+tensorflow
+keras-self-attention
