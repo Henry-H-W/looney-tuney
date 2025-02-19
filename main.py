@@ -48,8 +48,30 @@ def train_network(notes, n_vocab):
     # step 3: train the model using the prepared input and output sequences
     train(model, network_input, network_output)
 
+def convert_duration(duration_value):
+    """ Converts duration to float, handling fractions like '1/3'. """
+    try:
+        return float(duration_value)
+    except ValueError:
+        return float(Fraction(duration_value))  # Convert fraction (e.g., "1/3") to decimal
+
+def adjust_octave(pitch_name, shift=-1):
+    """ Adjusts the octave of a note to fix incorrect octave shifting. """
+    if pitch_name[-1].isdigit():  # Ensure last character is an octave number
+        note_part = pitch_name[:-1]  # Get note name (e.g., 'B')
+        octave_part = int(pitch_name[-1])  # Get octave number
+        return f"{note_part}{octave_part + shift}"  # Apply shift
+    return pitch_name  # If no octave detected, return as is
+
 def get_notes():
-    # get all the notes and chords from the midi files in the ./full_set_beethoven_mozart directory
+    """
+    Extracts **all** notes, chords, and **real** rests from MIDI files.
+
+    Fixes:
+    - **Ensures rests are only added when there's an actual gap**.
+    - **Corrects octave shifts** (down by 1).
+    - **Preserves exact note timing from the MIDI file**.
+    """
 
     # check if the "data/notes" file already exists to avoid unnecessary re-parsing
     if os.path.exists('data/notes'):
@@ -58,39 +80,53 @@ def get_notes():
             notes = pickle.load(filepath)  # load previously parsed notes from the saved file
         return notes  # return the existing notes data
 
-    # initialize empty lists to store notes, chords, and rests
-    notes = []
-    durations = []
+    notes = []  # Store cleaned notes, chords, and rests
+    last_offset = 0.0  # Keep track of the last note's offset
 
-    # loop through all midi files in the specified directory
-    for file in glob.glob("dataset/*.mid"):
-        midi = converter.parse(file)  # convert the midi file into a music21 stream object
+    midi_files = glob.glob("dataset/*.mid")
+    if not midi_files:
+        raise FileNotFoundError("No MIDI files found in 'dataset/' directory.")
 
-        print("parsing %s" % file)
+    for file in midi_files:
+        try:
+            midi = converter.parse(file)  # Load MIDI file
+            print(f"Parsing {file} ...")
 
-        notes_to_parse = None
+            # Try to extract instruments, otherwise flatten
+            try:
+                s2 = instrument.partitionByInstrument(midi)
+                notes_to_parse = s2.parts[0].recurse() if s2 else midi.flat.notes
+            except:
+                notes_to_parse = midi.flat.notes
 
-        try:  # if the midi file contains multiple instrument parts
-            s2 = instrument.partitionByInstrument(midi)  # separate the different instrument parts
-            notes_to_parse = s2.parts[0].recurse()  # extract notes from the first instrument
-        except:  # if the midi file does not contain separate instrument parts
-            notes_to_parse = midi.flat.notes  # flatten the structure to extract all notes
+            for element in notes_to_parse:
+                duration_value = convert_duration(element.quarterLength)  # Ensure duration is a float
 
-        # iterate through all elements in the midi file
-        for element in notes_to_parse:
-            if isinstance(element, note.Note):  # check if the element is a single musical note
-                notes.append(str(element.pitch) + " " + str(element.quarterLength))  # store the note pitch and duration
-            elif isinstance(element, chord.Chord):  # check if the element is a chord (multiple notes played together)
-                notes.append('.'.join(str(n) for n in element.normalOrder) + " " + str(element.quarterLength))
-                # store chord notes as numbers (normal order) and duration
-            elif isinstance(element, note.Rest):  # check if the element is a rest (a pause in music)
-                notes.append(str(element.name) + " " + str(element.quarterLength))  # store the rest type and duration
+                if element.offset > last_offset:
+                    rest_duration = element.offset - last_offset
+                    if rest_duration >= 0.25:  # Avoid micro-rests
+                        notes.append(f"rest {rest_duration}")
 
-    # save parsed notes to avoid re-processing in future runs
+                if isinstance(element, note.Note):  # 🎵 Single Note
+                    fixed_note = adjust_octave(element.nameWithOctave, shift=-1)
+                    notes.append(f"{fixed_note} {duration_value}")
+
+                elif isinstance(element, chord.Chord):  # 🎶 Chord
+                    chord_notes = ".".join(adjust_octave(n.nameWithOctave, shift=-1) for n in element.pitches)
+                    notes.append(f"{chord_notes} {duration_value}")
+
+                last_offset = element.offset + duration_value
+
+        except Exception as e:
+            print(f"Error processing {file}: {e}")
+
+    # Save cleaned notes to a pickle file
+    os.makedirs('data', exist_ok=True)
     with open('data/notes', 'wb') as filepath:
-        pickle.dump(notes, filepath)  # serialize and save the extracted notes to a file
+        pickle.dump(notes, filepath)
 
-    return notes  # return the extracted notes for further processing
+    print(f"Successfully extracted {len(notes)} elements from {len(midi_files)} MIDI files.")
+    return notes
 
 def prepare_sequences(notes, n_vocab):
     """ prepare the sequences used by the neural network """
@@ -170,28 +206,27 @@ def create_network(network_input, n_vocab):
 def train(model, network_input, network_output):
     """ train the neural network """
 
-    # define the file path for saving model checkpoints
-    filepath = os.path.abspath("weights-1LSTMAtt1LSTMLayer-{epoch:03d}-{loss:.4f}.keras")
+    batch_size = 64
+    steps_per_epoch = len(network_input) // batch_size  # or use math.ceil(...)
+    save_freq = steps_per_epoch * 5
 
-    # create a checkpoint callback to save model weights after each epoch
+    # Use the custom callback
+    filepath = os.path.abspath("weights-epoch{epoch:03d}-{loss:.4f}.keras")
     checkpoint = ModelCheckpoint(
         filepath,
-        monitor='loss',  # track loss during training
-        verbose=1,  # print messages when saving the model
-        save_best_only=False,  # save model at every epoch, not just the best one
-        mode='min',  # save models when loss is minimized
-        save_freq='epoch',  # save after every full epoch
-        save_weights_only=False  # set to true if you only want to save model weights, not full model
+        save_freq=save_freq, #Every 10 epochs
+        monitor='loss',
+        verbose=1,
+        save_best_only=False,
+        mode='min'
     )
 
-    # store the checkpoint callback in a list
-    callbacks_list = [checkpoint]
-
-    # train the model using the prepared sequences
+    # Then pass the callback to model.fit()
     model.fit(network_input, network_output,
-              epochs=30,  # train for 30 epochs
-              batch_size=64,  # process 64 samples at a time
-              callbacks=callbacks_list)  # use the checkpoint callback to save models
+              epochs=30,
+              batch_size=64,
+              callbacks=[checkpoint]
+    )
 
 # load all musical notes, chords, and rests from midi files
 notes = get_notes()
@@ -201,7 +236,7 @@ n_vocab = len(set(notes))  # converts list to set to remove duplicates, then get
 
 # train the model using the extracted notes and the vocabulary size
 # note: before running the model, make sure you have access to a GPU!
-train_network(notes, n_vocab)
+#train_network(notes, n_vocab)
 
 def generate():
     """ generate a piano midi file """
@@ -299,7 +334,7 @@ def create_network_add_weights(network_input, n_vocab):
 
     # load pre-trained weights to avoid training from scratch
     # this allows the model to generate music based on previously learned patterns
-    model.load_weights('weights-1LSTMAtt1LSTMLayer-030-0.3911.keras')
+    model.load_weights('weights-epoch005-5.6513.keras')
 
     return model  # return the model with loaded weights
 
@@ -362,16 +397,20 @@ def create_midi(prediction_output):
             notes_in_chord = pattern.split('.')  # split the chord into individual notes
             notes = []  # list to store note objects
             for current_note in notes_in_chord:
-                new_note = note.Note(int(current_note))  # create a note object for each note in the chord
-                new_note.storedInstrument = instrument.Piano()  # assign the instrument to piano
-                notes.append(new_note)  # add the note to the chord list
-            new_chord = chord.Chord(notes)  # create a chord object from the notes
-            new_chord.offset = offset  # set the timing offset
-            output_notes.append(new_chord)  # add the chord to the output
+                if current_note.isdigit():
+                    new_note = note.Note(int(current_note))
+                else:
+                    new_note = note.Note(current_note)
+                new_note.storedInstrument = instrument.Piano()
+                notes.append(new_note)
+            new_chord = chord.Chord(notes)
+            new_chord.offset = offset
+            output_notes.append(new_chord)
 
         # check if the pattern represents a rest (a pause in the music)
         elif 'rest' in pattern:
-            new_rest = note.Rest(pattern)  # create a rest object
+            new_rest = note.Rest()  # create a rest without passing "rest" as an argument
+            new_rest.duration.quarterLength = convert_to_float(duration)  # set the duration explicitly
             new_rest.offset = offset  # set the timing offset
             new_rest.storedInstrument = instrument.Piano()  # assign the instrument to piano
             output_notes.append(new_rest)  # add the rest to the output

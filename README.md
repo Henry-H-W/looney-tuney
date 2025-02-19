@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 ## Getting Started
 ### 1. Prepare the Dataset
-Ensure that you have MIDI files inside the `full_set_beethoven_mozart/` directory. The script will parse and preprocess these files.
+Ensure that you have your MIDI dataset inside the `dataset/` directory. The script will parse and preprocess these files.
 
 ### 2. Train the Model
 Before running the model, make sure you have access to a GPU! CPU training is heavily discouraged due to time and resource-intensity. To train the LSTM model on the provided dataset, run:
@@ -45,7 +45,7 @@ This will:
 1. Parse MIDI files and extract notes.
 2. Convert notes into sequences for training.
 3. Train an LSTM model using the prepared sequences.
-4. Save model weights after training.
+4. Save model weights after training. 
 
 ### 3. Generate Music
 Once the model is trained, you can generate new MIDI compositions using:
@@ -69,9 +69,9 @@ To play the generated music, use a MIDI player such as:
 ## Notes
 - The model uses a Bi-directional LSTM architecture with self-attention to generate more coherent musical sequences.
 - The generated output is saved in `test_output.mid`.
-- Pre-trained model weights should be available in `weights-1LSTMAtt1LSTMLayer-030-0.3911.keras` to generate meaningful results without retraining.
+- Pre-trained model weights should be available in `weights-epoch[epoch#]-[loss].keras` to generate meaningful results without retraining.
+- We found that 200+ MIDI files provide the best results (a good sign is to check the size of the resulting 'notes' file: if it's >3Mb, you have a good amount of data!)
+- We found training for 30 epochs on a 200-file dataset works best, but this number can be different based on the dataset.
 
 ## License
 This project is open-source and can be modified or distributed under the MIT License.
-
-
