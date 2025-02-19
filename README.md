@@ -32,10 +32,10 @@ pip install -r requirements.txt
 
 ## Getting Started
 ### 1. Prepare the Dataset
-Ensure that you have your MIDI dataset inside the `dataset/` directory. The script will parse and preprocess these files.
+Ensure that you have your MIDI dataset inside the `dataset/` directory. The `main.py` script will parse and preprocess these files. If some of your midi files contain multiple tracks, `midi_processing.py` can help condense everything into one track.
 
 ### 2. Train the Model
-Before running the model, make sure you have access to a GPU! CPU training is heavily discouraged due to time and resource-intensity. To train the LSTM model on the provided dataset, run:
+Before running the model, make sure you have access to a GPU! CPU training is heavily discouraged due to time and resource-intensity (we recommend Google Colab for free GPU use). To train the LSTM model on the provided dataset, run:
 
 ```bash
 python main.py
@@ -68,10 +68,11 @@ To play the generated music, use a MIDI player such as:
 
 ## Notes
 - The model uses a Bi-directional LSTM architecture with self-attention to generate more coherent musical sequences.
-- The generated output is saved in `test_output.mid`.
+- The generated output is saved in `generated_music_[timestamp].mid`.
 - Pre-trained model weights should be available in `weights-epoch[epoch#]-[loss].keras` to generate meaningful results without retraining.
 - We found that 200+ MIDI files provide the best results (a good sign is to check the size of the resulting 'notes' file: if it's >3Mb, you have a good amount of data!)
 - We found training for 30 epochs on a 200-file dataset works best, but this number can be different based on the dataset.
+- A Jupyter Notebook version of the code is also inside this repository for debugging and more convenient code execution.
 
 ## License
 This project is open-source and can be modified or distributed under the MIT License.

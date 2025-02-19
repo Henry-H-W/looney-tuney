@@ -77,7 +77,7 @@ def get_notes():
     notes = []  # Store cleaned notes, chords, and rests
     last_offset = 0.0  # Keep track of the last note's offset
 
-    # locate all MIDI files in the dataset directory
+    # locate all MIDI files in the dataset directory (if you have .midi files instead of .mid, edit the line below)
     midi_files = glob.glob("dataset/*.mid")
     if not midi_files:
         raise FileNotFoundError("No MIDI files found in 'dataset/' directory.")
@@ -200,6 +200,7 @@ def create_network(network_input, n_vocab):
 
     # compile the model using categorical cross-entropy loss and rmsprop optimizer
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    # (maybe experiment with different optimizers?)
 
     return model  # return the compiled model
 
@@ -238,7 +239,7 @@ n_vocab = len(set(notes))  # converts list to set to remove duplicates, then get
 
 # train the model using the extracted notes and the vocabulary size
 # note: before running the model, make sure you have access to a GPU!
-train_network(notes, n_vocab) # uncomment if you already have a weights file you want to use
+train_network(notes, n_vocab) # comment if you already have a weights file you want to use
 
 def generate():
     """ generate a piano midi file """
