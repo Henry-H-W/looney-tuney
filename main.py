@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt  # for data visualization (graphs, charts)
 import os  # to handle file and directory operations
 import glob  # to find files matching a pattern (e.g., all MIDI files in a folder)
 import pickle  # to save and load serialized objects (like trained models or preprocessed data)
+import datetime # for output file specification
 
 # importing music21 - a python library for handling and analyzing music notation
 from music21 import converter, instrument, stream, note, chord
@@ -126,6 +127,7 @@ def get_notes():
 
     print(f"Successfully extracted {len(notes)} elements from {len(midi_files)} MIDI files.")
     return notes
+    # possible experiement: use data augmentation techniques to increase the dataset (by pitch-shifting, time stretching, etc.)
 
 def prepare_sequences(notes, n_vocab):
     """ prepare the sequences used by the neural network """
@@ -343,6 +345,7 @@ def generate_notes(model, network_input, pitchnames, n_vocab):
 
     # pick a random sequence from the input as a starting point for the prediction
     start = np.random.randint(0, len(network_input)-1)
+    # possible experiment: start from the end of a user-imputted midi file to 'extend' their desired song?
 
     # create a dictionary to map integer values back to their corresponding notes
     int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
@@ -366,6 +369,7 @@ def generate_notes(model, network_input, pitchnames, n_vocab):
 
         # get the index of the highest probability note from the prediction output
         index = np.argmax(prediction)
+        # we could also do np.random.choice(len(prediction[0]), p=prediction[0]) for more randomness
 
         # convert the predicted index back to its corresponding note
         result = int_to_note[index]
@@ -429,10 +433,15 @@ def create_midi(prediction_output):
     midi_stream = stream.Stream(output_notes)
 
     # write the midi stream to a file
-    midi_stream.write('midi', fp='test_output.mid')
+    #midi_stream.write('midi', fp='test_output.mid')
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    midi_filename = f"generated_music_{timestamp}.mid"
+    midi_stream.write('midi', fp=midi_filename)
+    print(f"Generated MIDI saved as {midi_filename}")
 
 
 # helper function to convert fraction strings to float values
+# yes i know convert_duration and convert_to_float can be merged, i'm just too lazy to do it
 def convert_to_float(frac_str):
     try:
         return float(frac_str)  # try to directly convert the string to a float
