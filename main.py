@@ -64,14 +64,7 @@ def adjust_octave(pitch_name, shift=-1):
     return pitch_name  # If no octave detected, return as is
 
 def get_notes():
-    """
-    Extracts **all** notes, chords, and **real** rests from MIDI files.
-
-    Fixes:
-    - **Ensures rests are only added when there's an actual gap**.
-    - **Corrects octave shifts** (down by 1).
-    - **Preserves exact note timing from the MIDI file**.
-    """
+    """ Extracts all notes, chords, and rests from MIDI files. """
 
     # check if the "data/notes" file already exists to avoid unnecessary re-parsing
     if os.path.exists('data/notes'):
@@ -83,28 +76,33 @@ def get_notes():
     notes = []  # Store cleaned notes, chords, and rests
     last_offset = 0.0  # Keep track of the last note's offset
 
+    # locate all MIDI files in the dataset directory
     midi_files = glob.glob("dataset/*.mid")
     if not midi_files:
         raise FileNotFoundError("No MIDI files found in 'dataset/' directory.")
 
+    # iterate through all MIDI files in the dataset
     for file in midi_files:
         try:
-            midi = converter.parse(file)  # Load MIDI file
+            midi = converter.parse(file)  # load MIDI file
             print(f"Parsing {file} ...")
 
-            # Try to extract instruments, otherwise flatten
+            # try to extract instruments, otherwise flatten
             try:
                 s2 = instrument.partitionByInstrument(midi)
                 notes_to_parse = s2.parts[0].recurse() if s2 else midi.flat.notes
             except:
                 notes_to_parse = midi.flat.notes
 
+            # iterate through each musical element and store it (note, chord, or rest)
             for element in notes_to_parse:
-                duration_value = convert_duration(element.quarterLength)  # Ensure duration is a float
+                duration_value = convert_duration(element.quarterLength)  # ensure duration is a float
+                # possible experiment: work with time (seconds) instead of note durations for absolute precision
 
+                # only add rests if there is an actual gap (this was a problem for some reason)
                 if element.offset > last_offset:
                     rest_duration = element.offset - last_offset
-                    if rest_duration >= 0.25:  # Avoid micro-rests
+                    if rest_duration >= 0.25: 
                         notes.append(f"rest {rest_duration}")
 
                 if isinstance(element, note.Note):  # 🎵 Single Note
@@ -115,12 +113,13 @@ def get_notes():
                     chord_notes = ".".join(adjust_octave(n.nameWithOctave, shift=-1) for n in element.pitches)
                     notes.append(f"{chord_notes} {duration_value}")
 
+                # update last_offset to track the most recent note's position
                 last_offset = element.offset + duration_value
 
         except Exception as e:
             print(f"Error processing {file}: {e}")
 
-    # Save cleaned notes to a pickle file
+    # save cleaned notes to a pickle file for future use
     os.makedirs('data', exist_ok=True)
     with open('data/notes', 'wb') as filepath:
         pickle.dump(notes, filepath)
@@ -206,8 +205,9 @@ def create_network(network_input, n_vocab):
 def train(model, network_input, network_output):
     """ train the neural network """
 
+    # let's set up a model checkpoint system that saves the model weights after every 5 epochs of training!
     batch_size = 64
-    steps_per_epoch = len(network_input) // batch_size  # or use math.ceil(...)
+    steps_per_epoch = len(network_input) // batch_size 
     save_freq = steps_per_epoch * 5
 
     # Use the custom callback
@@ -236,7 +236,7 @@ n_vocab = len(set(notes))  # converts list to set to remove duplicates, then get
 
 # train the model using the extracted notes and the vocabulary size
 # note: before running the model, make sure you have access to a GPU!
-#train_network(notes, n_vocab)
+train_network(notes, n_vocab) # uncomment if you already have a weights file you want to use
 
 def generate():
     """ generate a piano midi file """
@@ -433,7 +433,6 @@ def create_midi(prediction_output):
 
 
 # helper function to convert fraction strings to float values
-# source: https://stackoverflow.com/questions/1806278/convert-fraction-to-float
 def convert_to_float(frac_str):
     try:
         return float(frac_str)  # try to directly convert the string to a float
