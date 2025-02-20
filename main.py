@@ -335,7 +335,7 @@ def create_network_add_weights(network_input, n_vocab):
     # rmsprop is used as the optimizer to improve training stability
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    # load pre-trained weights to avoid training from scratch
+    # load your pre-trained weights to avoid training from scratch (so change this line)
     # this allows the model to generate music based on previously learned patterns
     model.load_weights('weights-epoch005-5.6513.keras')
 
@@ -434,7 +434,6 @@ def create_midi(prediction_output):
     midi_stream = stream.Stream(output_notes)
 
     # write the midi stream to a file
-    #midi_stream.write('midi', fp='test_output.mid')
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     midi_filename = f"generated_music_{timestamp}.mid"
     midi_stream.write('midi', fp=midi_filename)
