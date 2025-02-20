@@ -70,9 +70,11 @@ To play the generated music, use a MIDI player such as:
 - The model uses a Bi-directional LSTM architecture with self-attention to generate more coherent musical sequences.
 - The generated output is saved in `generated_music_[timestamp].mid`.
 - Pre-trained model weights should be available in `weights-epoch[epoch#]-[loss].keras` to generate meaningful results without retraining.
-- We found that 200+ MIDI files provide the best results (a good sign is to check the size of the resulting 'notes' file: if it's >3Mb, you have a good amount of data!)
+- We found that 200+ MIDI files provide the best results (a good sign is to check the size of the resulting 'notes' file: if it's >2Mb, you have a good amount of data!)
 - We found training for 30 epochs on a 200-file dataset works best, but this number can be different based on the dataset.
+- We found that a loss around 0.2000 - 0.4000 is a good balance of structure & variation without overfitting.
 - A Jupyter Notebook version of the code is also inside this repository for debugging and more convenient code execution.
+- If you're worried about overfitting, run your dataset and generated midis through `overfit_check.py` which determines if the note distributions of your generated midi match any tracks from the dataset.
 
 ## License
 This project is open-source and can be modified or distributed under the MIT License.
