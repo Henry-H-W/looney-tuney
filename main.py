@@ -10,6 +10,7 @@ import datetime # for output file specification
 
 # importing music21 - a python library for handling and analyzing music notation
 from music21 import converter, instrument, stream, note, chord
+from collections import Counter
 
 # importing deep learning tools from Keras
 from keras.models import Sequential  # for building sequential neural networks
@@ -42,6 +43,8 @@ def train_network(notes, n_vocab):
 
     # step 1: convert the notes into a format that the neural network can understand
     network_input, network_output = prepare_sequences(notes, n_vocab)
+
+    print(f"Total training sequences generated: {len(network_input)}")
 
     # step 2: create the LSTM-based neural network model
     model = create_network(network_input, n_vocab)
@@ -119,15 +122,22 @@ def get_notes():
 
         except Exception as e:
             print(f"Error processing {file}: {e}")
+            continue  # continue processing other files
+
+    # apply hard cutoff: keep only the 15000 most common notes to avoid resource exhaustion errors
+    note_counts = Counter(notes)
+    most_common_notes = {note for note, _ in note_counts.most_common(15000)}
+
+    # remove rare notes entirely
+    filtered_notes = [note for note in notes if note in most_common_notes]
 
     # save cleaned notes to a pickle file for future use
     os.makedirs('data', exist_ok=True)
     with open('data/notes', 'wb') as filepath:
-        pickle.dump(notes, filepath)
+        pickle.dump(filtered_notes, filepath)
 
-    print(f"Successfully extracted {len(notes)} elements from {len(midi_files)} MIDI files.")
-    return notes
-    # possible experiement: use data augmentation techniques to increase the dataset (by pitch-shifting, time stretching, etc.)
+    print(f"Successfully extracted {len(filtered_notes)} elements from {len(midi_files)} MIDI files.")
+    return filtered_notes
 
 def prepare_sequences(notes, n_vocab):
     """ prepare the sequences used by the neural network """
@@ -226,7 +236,7 @@ def train(model, network_input, network_output):
 
     # Then pass the callback to model.fit()
     model.fit(network_input, network_output,
-              epochs=30,
+              epochs=5,
               batch_size=64,
               callbacks=[checkpoint]
     )
@@ -236,6 +246,8 @@ notes = get_notes()
 
 # get the total number of unique pitch names (distinct notes, chords, and rests)
 n_vocab = len(set(notes))  # converts list to set to remove duplicates, then gets its length
+
+print(f"Vocabulary size (n_vocab): {n_vocab}")
 
 # train the model using the extracted notes and the vocabulary size
 # note: before running the model, make sure you have access to a GPU!
