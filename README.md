@@ -48,7 +48,7 @@ This will:
 4. Save model weights after training. 
 
 ### 3. Generate Music
-Once the model is trained, you can generate new MIDI compositions using:
+Once the model is trained, comment the training code. You can then generate new MIDI compositions using:
 
 ```bash
 python main.py
@@ -61,16 +61,16 @@ The script will:
 4. Save the output as `test_output.mid`.
 
 ### 4. Playing the Generated MIDI File
-To play the generated music, use a MIDI player such as:
-- [MuseScore](https://musescore.org/)
-- [VLC Media Player](https://www.videolan.org/vlc/)
-- Any DAW (Digital Audio Workstation) like FL Studio or Ableton
+To play the generated music and save it as an audible file, run:
+```bash
+python play.py
+```
 
 ## Notes
 - The model uses a Bi-directional LSTM architecture with self-attention to generate more coherent musical sequences.
-- The generated output is saved in `generated_music_[timestamp].mid`.
+- The generated output is saved as `generated_music_[date]_[timestamp].mid`.
 - Pre-trained model weights should be available in `weights-epoch[epoch#]-[loss].keras` to generate meaningful results without retraining.
-- We found that 200+ MIDI files provide the best results (a good sign is to check the size of the resulting 'notes' file: if it's >2Mb, you have a good amount of data!)
+- We found that 200+ MIDI files provide the best results (a good sign is to check the size of the resulting 'notes' file: if it's 1-2Mb, you have a good amount of data!)
 - We found training for 30 epochs on a 200-file dataset works best, but this number can be different based on the dataset.
 - We found that a loss around 0.2000 - 0.4000 is a good balance of structure & variation without overfitting.
 - A Jupyter Notebook version of the code is also inside this repository for debugging and more convenient code execution.
