@@ -66,10 +66,13 @@ for instrument in pm.instruments:
             if len(chord_notes) > 1:
                 new_end = max(new_end, note.end)
 
+            # shift notes up one octave if needed (recommended if using 8-bit soundfont)
+            new_pitch = note.pitch + 12 if note.pitch + 12 <= 127 else 127  # Ensure max MIDI pitch value is not exceeded
+
             # Store the new adjusted note
             new_note = pretty_midi.Note(
                 velocity=note.velocity,
-                pitch=note.pitch,
+                pitch=new_pitch, # or note.pitch for original pitch
                 start=new_start,
                 end=new_end
             )
