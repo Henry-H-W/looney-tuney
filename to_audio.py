@@ -127,7 +127,7 @@ processed_pm.write(edited_midi_name)
 pm_humanized = pretty_midi.PrettyMIDI(edited_midi_name)
 
 # convert the midi file to audio using a soundfont
-wave = pm_humanized.fluidsynth(sf2_path="SalC5Light2.sf2", fs=sample_rate)
+wave = pm_humanized.fluidsynth(sf2_path=r"soundfonts/SalC5Light2.sf2", fs=sample_rate)
 
 # save the audio as a wav file
 sf.write("edited_midi.wav", wave, sample_rate)
@@ -145,6 +145,6 @@ filtered_segment = filtered_segment.overlay(filtered_segment - 6, position=50)
 filtered_segment = filtered_segment.normalize()
 
 # play the final processed audio
-playback.play(filtered_segment)
+# playback.play(filtered_segment)
 
 print(f"edited midi saved as: {edited_midi_name}")
