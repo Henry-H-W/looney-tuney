@@ -10,7 +10,7 @@ import time
 import threading
 from scipy.ndimage import gaussian_filter
 import os
-
+import random
 
 def generatePgColormap(cm_name):
     """Converts a matplotlib colormap to a pyqtgraph colormap."""
@@ -29,13 +29,18 @@ chunk_size = int(CHUNKSIZE * (1 - OVERLAP_RATIO))  # Adjust chunk size for overl
 EPS = 1e-8
 
 # find the most recent audio file in the directory
-audio_files = [f for f in os.listdir() if f.endswith(".wav")]
+audio_files = [f for f in os.listdir() if f.endswith((".wav", ".mp3"))]
 if not audio_files:
     raise FileNotFoundError("No audio files found in the directory.")
 
 # Load MP3 file
 audio_path = max(audio_files, key=os.path.getctime)
-audio = AudioSegment.from_file(audio_path, format="wav").set_channels(1)  # Convert to mono
+# Detect file format based on extension
+file_ext = os.path.splitext(audio_path)[1][1:]  # Extracts "wav" or "mp3"
+
+# Load the correct format
+audio = AudioSegment.from_file(audio_path, format=file_ext).set_channels(1)  # Convert to mono
+
 sample_rate = audio.frame_rate  # Get sample rate
 
 # Convert to NumPy array (16-bit PCM format)
@@ -70,8 +75,18 @@ waterfall_plot.hideAxis("bottom")  # Hide the X-axis
 waterfall_image = pg.ImageItem()
 waterfall_plot.addItem(waterfall_image)
 
-# Apply a smoother colormap
-lut = generatePgColormap("magma")  # Better contrast for clarity
+# List of available colormaps (feel free to add more)
+COLORMAPS = [
+    "viridis", "inferno", "magma", "cividis", "turbo",
+    "gray", "copper", "bone", "cubehelix"
+]
+
+# Randomly select a colormap
+selected_colormap = random.choice(COLORMAPS)
+print(f"🎨 Selected Colormap: {selected_colormap}")  # Debugging output
+
+lut = generatePgColormap(selected_colormap)
+
 waterfall_image.setLookupTable(lut)
 waterfall_image.setOpacity(0.5)  # Adjust transparency
 waterfall_image.setAutoDownsample(True)  # Enable interpolation for smoother visuals
@@ -115,8 +130,11 @@ def update_waterfall():
 
     arr = np.array(waterfall_data)
 
+    # Remove very low values (background noise) before blurring
+    arr[arr < -10] = -10  # Forces weak signals to be pure black
+
     # Apply Gaussian blur to reduce pixelation
-    arr = gaussian_filter(arr, sigma=0.8)
+    arr = gaussian_filter(arr, sigma=1)
 
     if arr.size > 0:
         waterfall_image.setImage(arr, levels=(arr.min(), arr.max()))
