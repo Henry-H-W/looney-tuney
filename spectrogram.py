@@ -63,17 +63,25 @@ if app is None:
 
 win = pg.GraphicsLayoutWidget()
 # win.resize(1000, 600)
+win.ci.setContentsMargins(0, 0, 0, 0)
+win.ci.setSpacing(0)
 win.showMaximized() # for opening in fullscreen mode
-win.setWindowTitle("MP3 Spectrogram Visualizer")
+win.setWindowTitle("AI Music Composer")
 
 # Waterfall Plot
 waterfall_data = deque([np.full(len(FREQ_VECTOR), -10)] * WATERFALL_FRAMES, maxlen=WATERFALL_FRAMES)
 waterfall_plot = win.addPlot(title="")
+waterfall_plot.setAspectLocked(False)
+waterfall_plot.vb.setAutoVisible(y=True)  # Auto-adjust Y-axis to fit content
+waterfall_plot.vb.setLimits(xMin=0, xMax=WATERFALL_DURATION, yMin=0, yMax=FREQ_LIMIT)  # Force full coverage
+waterfall_plot.vb.setRange(xRange=(0, WATERFALL_DURATION), yRange=(0, FREQ_LIMIT), padding=0)
 waterfall_plot.setXRange(0, WATERFALL_DURATION)
 waterfall_plot.hideAxis("left")  # Hide the Y-axis
 waterfall_plot.hideAxis("bottom")  # Hide the X-axis
 waterfall_image = pg.ImageItem()
 waterfall_plot.addItem(waterfall_image)
+waterfall_plot.setAspectLocked(False)
+waterfall_plot.vb.setDefaultPadding(0.0)
 
 # List of available colormaps (feel free to add more)
 COLORMAPS = [
