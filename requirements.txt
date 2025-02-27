@@ -1,10 +1,28 @@
+# General dependencies
 numpy
 pandas
 matplotlib
-os-sys
+datetime
 glob2
 pickle-mixin
+scipy
+
+# MIDI Processing & Music Libraries
+mido
+rtmidi
 music21
+pretty_midi
+pypianoroll
+soundfile
+pydub
+fluidsynth
+
+# Deep Learning (LSTM Model)
 keras
 tensorflow
 keras-self-attention
+scikit-learn
+
+# GUI & Visualization
+pyqtgraph
+PyQt5
