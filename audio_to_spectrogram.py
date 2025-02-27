@@ -1,166 +1,172 @@
-from collections import deque
-import numpy as np
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
+import os
 import sys
+import time
+import random
+import threading
+from collections import deque
+
+import numpy as np
+import pygame
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
 from pydub.playback import play
-import time
-import threading
 from scipy.ndimage import gaussian_filter
-import os
-import random
 
+# ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
 def generatePgColormap(cm_name):
-    """Converts a matplotlib colormap to a pyqtgraph colormap."""
+    """
+    Converts a matplotlib colormap to a lookup table (LUT) of shape (256, 4).
+    We will later use only the RGB channels.
+    """
     colormap = plt.get_cmap(cm_name)
-    colormap._init()
-    lut = (colormap._lut * 255).view(np.ndarray)  # Convert matplotlib colormap from 0-1 to 0-255 for Qt
+    colormap._init()  # initialize the LUT
+    lut = (colormap._lut * 255).view(np.ndarray).astype(np.uint8)
     return lut
 
-
-# Constants
-CHUNKSIZE = 2048
-N_FFT = 16384  # Increased FFT size for higher resolution
-WATERFALL_DURATION = 10  # Limit to 10 seconds
-OVERLAP_RATIO = 0.5  # 50% overlap for smoother scrolling
-chunk_size = int(CHUNKSIZE * (1 - OVERLAP_RATIO))  # Adjust chunk size for overlap
+# ----- Constants and Parameters -----
+CHUNKSIZE = 2048        # Base chunk size (samples)
+N_FFT = 16384           # FFT length for high resolution
+WATERFALL_DURATION = 10  # seconds to show in waterfall
+OVERLAP_RATIO = 0.5     # 50% overlap for smoother scrolling
+chunk_size = int(CHUNKSIZE * (1 - OVERLAP_RATIO))  # step size per update
 EPS = 1e-8
 
-# find the most recent audio file in the directory
+# ----- Find and load the most recent audio file -----
 audio_files = [f for f in os.listdir() if f.endswith((".wav", ".mp3"))]
 if not audio_files:
     raise FileNotFoundError("No audio files found in the directory.")
 
-# Load MP3 file
 audio_path = max(audio_files, key=os.path.getctime)
-# Detect file format based on extension
-file_ext = os.path.splitext(audio_path)[1][1:]  # Extracts "wav" or "mp3"
+file_ext = os.path.splitext(audio_path)[1][1:]  # e.g., "wav" or "mp3"
+print(f"Loading audio file: {audio_path}")
 
-# Load the correct format
 audio = AudioSegment.from_file(audio_path, format=file_ext).set_channels(1)  # Convert to mono
+sample_rate = audio.frame_rate
 
-sample_rate = audio.frame_rate  # Get sample rate
-
-# Convert to NumPy array (16-bit PCM format)
+# Convert audio samples to a normalized numpy float32 array
 samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
-samples /= np.max(np.abs(samples))  # Normalize audio
+if np.max(np.abs(samples)) > 0:
+    samples /= np.max(np.abs(samples))
 
-# Calculate number of spectrogram frames
+# ----- Compute Waterfall Dimensions -----
+# Number of waterfall frames (time resolution)
 WATERFALL_FRAMES = int(WATERFALL_DURATION * sample_rate / chunk_size)
+# Frequency vector (only keep frequencies up to FREQ_LIMIT)
+FREQ_LIMIT = 5000  # Hz (change as needed)
+FREQ_VECTOR = np.fft.rfftfreq(N_FFT, d=1/sample_rate)
+freq_mask = FREQ_VECTOR <= FREQ_LIMIT
+FREQ_VECTOR = FREQ_VECTOR[freq_mask]
+num_freq_bins = len(FREQ_VECTOR)
 
-# Frequency vector
-FREQ_VECTOR = np.fft.rfftfreq(N_FFT, d=1 / sample_rate)
-FREQ_LIMIT = 5000  # Set the max frequency to 10 kHz
-freq_mask = FREQ_VECTOR <= FREQ_LIMIT  # Create a mask for filtering
-FREQ_VECTOR = FREQ_VECTOR[freq_mask]  # Apply the mask to keep only 0-10kHz
+# ----- Initialize the Waterfall Image Data -----
+# We create a 2D numpy array with shape (num_freq_bins, WATERFALL_FRAMES)
+# Each column will hold the log-magnitude spectrum from one FFT frame.
+waterfall_image_data = np.full((num_freq_bins, WATERFALL_FRAMES), -10, dtype=np.float32)
 
-# PyQtGraph Window
-app = QtWidgets.QApplication.instance()
-if app is None:
-    app = QtWidgets.QApplication(sys.argv)
+# ----- Setup Pygame -----
+pygame.init()
+window_width, window_height = pygame.display.Info().current_w, pygame.display.Info().current_h - 75
+screen = pygame.display.set_mode((window_width, window_height))
+pygame.display.set_caption("Live Waterfall Spectrogram (Audio File)")
+font = pygame.font.SysFont("Arial", 24)
+clock = pygame.time.Clock()
 
-win = pg.GraphicsLayoutWidget()
-# win.resize(1000, 600)
-win.ci.setContentsMargins(0, 0, 0, 0)
-win.ci.setSpacing(0)
-win.showMaximized() # for opening in fullscreen mode
-win.setWindowTitle("AI Music Composer")
-
-# Waterfall Plot
-waterfall_data = deque([np.full(len(FREQ_VECTOR), -10)] * WATERFALL_FRAMES, maxlen=WATERFALL_FRAMES)
-waterfall_plot = win.addPlot(title="")
-waterfall_plot.setAspectLocked(False)
-waterfall_plot.vb.setAutoVisible(y=True)  # Auto-adjust Y-axis to fit content
-waterfall_plot.vb.setLimits(xMin=0, xMax=WATERFALL_DURATION, yMin=0, yMax=FREQ_LIMIT)  # Force full coverage
-waterfall_plot.vb.setRange(xRange=(0, WATERFALL_DURATION), yRange=(0, FREQ_LIMIT), padding=0)
-waterfall_plot.setXRange(0, WATERFALL_DURATION)
-waterfall_plot.hideAxis("left")  # Hide the Y-axis
-waterfall_plot.hideAxis("bottom")  # Hide the X-axis
-waterfall_image = pg.ImageItem()
-waterfall_plot.addItem(waterfall_image)
-waterfall_plot.setAspectLocked(False)
-waterfall_plot.vb.setDefaultPadding(0.0)
-
-# List of available colormaps (feel free to add more)
+# ----- Select a random colormap and generate its LUT -----
 COLORMAPS = [
-    "viridis", "inferno", "magma", "cividis", "turbo",
+    "inferno", "magma",
     "gray", "copper", "bone", "cubehelix"
 ]
-
-# Randomly select a colormap
 selected_colormap = random.choice(COLORMAPS)
-print(f"🎨 Selected Colormap: {selected_colormap}")  # Debugging output
-
+print(f"🎨 Selected Colormap: {selected_colormap}")
 lut = generatePgColormap(selected_colormap)
+rgb_lut = lut[:, :3]  # use only R,G,B channels
 
-waterfall_image.setLookupTable(lut)
-waterfall_image.setOpacity(0.5)  # Adjust transparency
-waterfall_image.setAutoDownsample(True)  # Enable interpolation for smoother visuals
-transform = QtGui.QTransform()
-# transform.scale(chunk_size / sample_rate, FREQ_VECTOR.max() * 2. / N_FFT)
-transform.scale(chunk_size / sample_rate, 10000 / len(FREQ_VECTOR))  # Scale to 10 kHz range
-waterfall_image.setTransform(transform)
-
-# Initialize playback variables
-current_index = 0
-start_time = None  # Track when audio starts
-
-
-def update_waterfall():
-    """Update the spectrogram by processing chunks from the MP3 file, keeping it in sync with audio playback."""
-    global current_index, start_time
-
-    # Sync with audio playback timing
-    if start_time is None:
-        return  # Don't process until playback starts
-    elapsed_time = time.time() - start_time
-    expected_index = int(elapsed_time * sample_rate)  # Expected sample index
-
-    # Ensure real-time sync
-    if expected_index > current_index:
-        current_index = expected_index
-
-    if current_index + chunk_size < len(samples):
-        data = samples[current_index:current_index + chunk_size]
-        current_index += chunk_size
-    else:
-        return  # Stop updating when the file is fully processed
-
-    # Compute FFT
-    # X = np.abs(np.fft.rfft(np.hanning(data.size) * data, n=N_FFT))
-    X = np.abs(np.fft.rfft(np.hanning(data.size) * data, n=N_FFT))[freq_mask]  # Apply the mask
-    new_frame = np.log10(X + 1e-12)
-
-    # Maintain left-to-right scrolling (keep original behavior)
-    waterfall_data.appendleft(new_frame)  # Insert new frame at the start
-
-    arr = np.array(waterfall_data)
-
-    # Remove very low values (background noise) before blurring
-    arr[arr < -10] = -10  # Forces weak signals to be pure black
-
-    # Apply Gaussian blur to reduce pixelation
-    arr = gaussian_filter(arr, sigma=1)
-
-    if arr.size > 0:
-        waterfall_image.setImage(arr, levels=(arr.min(), arr.max()))
-
+# ----- Audio Playback Globals -----
+current_index = 0  # current sample index into the audio file
+start_time = None  # will be set when playback starts
 
 def play_audio():
     global start_time
-    start_time = time.time()  # Mark playback start time
-    play(audio)  # Play MP3 file using pydub
+    start_time = time.time()  # mark playback start time
+    play(audio)  # this call blocks; run in a separate thread
 
-
-# Start the audio in a separate thread
+# Start audio playback in a separate thread
 audio_thread = threading.Thread(target=play_audio, daemon=True)
 audio_thread.start()
 
-# Timer for updating spectrogram
-timer_waterfall = QtCore.QTimer()
-timer_waterfall.timeout.connect(update_waterfall)
-timer_waterfall.start(max(1, int(1000 * CHUNKSIZE / sample_rate * 0.5)))  # Speed up slightly
-win.show()
-sys.exit(app.exec_())
+# ----- Main Loop -----
+running = True
+while running:
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # Only update waterfall if playback has started
+    if start_time is not None:
+        elapsed_time = time.time() - start_time
+        samples_played = int(elapsed_time * audio.frame_rate)  # Actual samples played
+        current_index = min(samples_played, len(samples) - chunk_size)  # Ensure we don’t go out of bounds
+
+        if current_index + chunk_size < len(samples):
+            # Get the next chunk from the audio samples
+            data = samples[current_index: current_index + chunk_size]
+            current_index += chunk_size
+
+            # Compute FFT using a Hanning window; apply the frequency mask
+            windowed = np.hanning(len(data)) * data
+            X = np.abs(np.fft.rfft(windowed, n=N_FFT))[freq_mask]
+            new_frame = np.log10(X + 1e-12)  # take log (avoid log(0))
+            
+            # Scroll the waterfall image left by one column and add the new frame at the right
+            waterfall_image_data = np.roll(waterfall_image_data, -1, axis=1)
+            waterfall_image_data[:, -1] = new_frame
+
+            # Force very low values to -10 (pure black background)
+            waterfall_image_data[waterfall_image_data < -10] = -10
+
+            # Apply Gaussian blur to smooth the display
+            waterfall_blurred = gaussian_filter(waterfall_image_data, sigma=0.75)
+
+            # Normalize the data to [0, 255]
+            min_val = waterfall_blurred.min()
+            max_val = waterfall_blurred.max()
+            if max_val - min_val > 0:
+                normalized = (waterfall_blurred - min_val) / (max_val - min_val)
+            else:
+                normalized = waterfall_blurred - min_val
+            normalized = (normalized * 255).astype(np.uint8)
+
+            # Map normalized values to colors using the LUT (vectorized lookup)
+            # The result is an array of shape (num_freq_bins, WATERFALL_FRAMES, 3)
+            # Adjust brightness by scaling the RGB values (lower values = darker)
+            brightness_factor = 0.5  # Adjust between 0 (black) and 1 (full brightness)
+            color_image = (rgb_lut[normalized] * brightness_factor).astype(np.uint8)
+
+            #color_image = rgb_lut[normalized]
+
+            # Create a pygame surface from the color image.
+            # Note: pygame.surfarray.make_surface expects an array with shape (width, height, 3),
+            # so we transpose the array (time axis becomes x, frequency axis becomes y)
+            surf_array = np.transpose(color_image, (1, 0, 2))
+            spec_surface = pygame.surfarray.make_surface(surf_array)
+            
+            # Scale the spectrogram surface to fill the window
+            spec_surface = pygame.transform.scale(spec_surface, (window_width, window_height))
+
+            # Blit the spectrogram onto the screen
+            screen.blit(spec_surface, (0, 0))
+        else:
+            # End of audio: optionally, you might break out or freeze the display.
+            pass
+
+    # Overlay text on top of the spectrogram
+    text_surface = font.render("Hello World! This is an AI Music Composer tool (not yet)", True, (255, 255, 255))
+    screen.blit(text_surface, (10, 10))
+    
+    # Update the display
+    pygame.display.flip()
+    clock.tick(30)  # Limit to ~30 FPS
+
+pygame.quit()
+sys.exit()
