@@ -145,6 +145,6 @@ filtered_segment = filtered_segment.overlay(filtered_segment - 6, position=50)
 filtered_segment = filtered_segment.normalize()
 
 # play the final processed audio
-# playback.play(filtered_segment)
+playback.play(filtered_segment)
 
 print(f"edited midi saved as: {edited_midi_name}")
