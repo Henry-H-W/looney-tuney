@@ -65,5 +65,10 @@ python midi_to_audio.py
 - `midi_to_audio.py` records the audible file in 120bpm. This means, if the input midi is intended to be played with another bpm, the playbck may not sound correct.
 - `audio_to_spectrogram.py` produces a spectrogram of any wav or mp3 file
 
+## References
+- <a href="https://medium.com/@alexissa122/generating-original-classical-music-with-an-lstm-neural-network-and-attention-abf03f9ddcb4">Generating Original Classical Music with an LSTM Neural Network and Attention</a>
+- <a href="https://youtu.be/zpZDwqsgSpc?si=LaH-QSm2hTHLAf8E">Programming with MIDI in Python | Responding to MIDI Messages</a>
+- <a href="https://swharden.com/blog/2010-06-19-simple-python-spectrograph-with-pygame/">Simple Python Spectrograph with PyGame</a>
+
 ## License
 This project is open-source and can be modified or distributed under the MIT License.
