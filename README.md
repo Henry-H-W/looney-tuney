@@ -49,7 +49,7 @@ This will:
 4. Save the output as `generated_music_[date]_[timestamp].mid`.
 
 ### 4. Playing the Generated MIDI File
-To play the generated music and save it as an audible file, run:
+To play the generated music (using instruments from the `soundfonts/` directory) and save it as an audible file, run:
 ```bash
 python midi_to_audio.py
 ```
