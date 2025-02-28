@@ -72,7 +72,7 @@ for instrument in pm.instruments:
             # Store the new adjusted note
             new_note = pretty_midi.Note(
                 velocity=note.velocity,
-                pitch=new_pitch, # or note.pitch for original pitch
+                pitch=note.pitch, # switch between note.pitch for original pitch, or new_pitch for +1 octave
                 start=new_start,
                 end=new_end
             )
