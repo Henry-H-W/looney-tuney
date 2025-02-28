@@ -26,3 +26,4 @@ scikit-learn
 # GUI & Visualization
 pyqtgraph
 PyQt5
+cmasher

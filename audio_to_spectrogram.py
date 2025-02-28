@@ -4,6 +4,7 @@ import time
 import random
 import threading
 from collections import deque
+import cmasher as cmr  # Import cmasher for additional colormaps
 
 import numpy as np
 import pygame
@@ -73,12 +74,28 @@ clock = pygame.time.Clock()
 
 # ----- Select a random colormap and generate its LUT -----
 COLORMAPS = [
-    "inferno", "magma",
-    "gray", "copper", "bone", "cubehelix"
+    "inferno", "magma",  # Standard colormaps
+    "gist_heat", "gray", "copper", "bone", "cubehelix",  # Extra colormaps
+    # cmasher colormaps ------------------------------------------------
+    "cmr.lavender", "cmr.tree", "cmr.dusk", "cmr.nuclear", "cmr.emerald",
+    "cmr.sapphire", "cmr.cosmic", "cmr.ember", "cmr.toxic",
+    "cmr.lilac", "cmr.sepia", "cmr.amber", "cmr.eclipse",
+    "cmr.ghostlight", "cmr.arctic", "cmr.jungle",
+    "cmr.swamp", "cmr.freeze", "cmr.amethyst", "cmr.flamingo",
+    "cmr.savanna", "cmr.sunburst", "cmr.voltage", "cmr.gothic",
+    "cmr.apple", "cmr.torch", "cmr.rainforest", "cmr.chroma"
 ]
+
+# Select a random colormap
 selected_colormap = random.choice(COLORMAPS)
-print(f"🎨 Selected Colormap: {selected_colormap}")
-lut = generatePgColormap(selected_colormap)
+print(f"Selected Colormap: {selected_colormap}")
+
+# Use cmasher for custom colormaps
+if selected_colormap.startswith("cmr."):
+    selected_colormap = getattr(cmr, selected_colormap.split(".")[1])  # Get the colormap function
+    lut = generatePgColormap(selected_colormap)
+else:
+    lut = generatePgColormap(selected_colormap)
 rgb_lut = lut[:, :3]  # use only R,G,B channels
 
 # ----- Audio Playback Globals -----
