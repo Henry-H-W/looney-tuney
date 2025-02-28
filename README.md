@@ -60,7 +60,7 @@ python midi_to_audio.py
 - We found training for 30 epochs on a 200-file dataset works best, but this number can be different based on the dataset.
 - We found that a loss around 0.2 - 0.4 is a good balance of structure & variation without overfitting.
 - If you're worried about overfitting, run your dataset and generated midis through `overfit_check.py` which determines if the note distributions of your generated midi match any tracks from the dataset.
-- The `python-rtmidi` library needs <a href="mailto:echen29@uwo.ca?Subject=AISE3350A%20Assignment%201">Microsoft Visual C++ Build Tools</a> Microsoft Visual C++ Build Tools installed to run 
+- The `python-rtmidi` library needs <a href="https://visualstudio.microsoft.com/visual-cpp-build-tools/">Microsoft C++ Build Tools</a> installed to run 
 - `keyboard_to_midi.py` takes a keyboard's input and turns it into a midi file for playing around with
 - `audio_to_spectrogram.py` produces a spectrogram of any wav or mp3 file
 
