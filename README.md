@@ -61,7 +61,7 @@ python midi_to_audio.py
 - We found that a loss around 0.2 - 0.4 is a good balance of structure & variation without overfitting.
 - If you're worried about overfitting, run your dataset and generated midis through `overfit_check.py` which determines if the note distributions of your generated midi match any tracks from the dataset.
 - The `python-rtmidi` library needs <a href="https://visualstudio.microsoft.com/visual-cpp-build-tools/">Microsoft C++ Build Tools</a> installed to run 
-- `keyboard_to_midi.py` takes a keyboard's input and turns it into a midi file for demonstration purposes.
+- `keyboard_to_midi.py` takes a keyboard's input and turns it into a midi file for demonstration purposes. Make sure you have no applications that may use the MIDI input open (such as DAWs) so that the script has no problem receiving the MIDI information from your device.
 - `midi_to_audio.py` records the audible file in 120bpm. This means, if the input midi is intended to be played with another bpm, the playbck may not sound correct.
 - `audio_to_spectrogram.py` produces a spectrogram of any wav or mp3 file
 
