@@ -1,6 +1,6 @@
 # LSTM Music Composition Model
 
-This project is a deep learning-based music composition system using Long Short-Term Memory (LSTM) neural networks. The model learns musical patterns from classical MIDI files and generates new music based on the learned sequences. This project is associated with Western Cyber Society and contributed by:
+This project is a deep learning-based music composition system using Long Short-Term Memory (LSTM) neural networks. The model learns musical patterns from MIDI files and generates new music based on the learned sequences. This project is associated with Western Cyber Society and contributed by:
 - Henry Wang
 - Richard Augustine
 - Shawn Yuen
@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 ## Getting Started
 ### 1. Prepare the Dataset
-Ensure that you have your MIDI dataset inside the `dataset/` directory. If some of your midi files contain multiple tracks / instruments, `midi_dataset_processing.py` can help condense everything into one track.
+Ensure that you have your MIDI dataset inside the `dataset/` directory (make sure the files end with .mid). If some of your midi files contain multiple tracks / instruments, `midi_dataset_processing.py` can help condense everything into one track.
 
 ### 2. Train the Model
 To train the LSTM model on the provided dataset, run:
@@ -61,7 +61,7 @@ python midi_to_audio.py
 - We found that a loss around 0.2 - 0.4 is a good balance of structure & variation without overfitting.
 - If you're worried about overfitting, run your dataset and generated midis through `overfit_check.py` which determines if the note distributions of your generated midi match any tracks from the dataset.
 - The `python-rtmidi` library needs <a href="https://visualstudio.microsoft.com/visual-cpp-build-tools/">Microsoft C++ Build Tools</a> installed to run 
-- `keyboard_to_midi.py` takes a keyboard's input and turns it into a midi file for playing around with
+- `keyboard_to_midi.py` takes a keyboard's input and turns it into a midi file for demonstration purposes
 - `audio_to_spectrogram.py` produces a spectrogram of any wav or mp3 file
 
 ## License
