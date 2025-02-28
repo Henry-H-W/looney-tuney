@@ -15,7 +15,7 @@ pretty_midi
 pypianoroll
 soundfile
 pydub
-fluidsynth
+pyfluidsynth
 
 # Deep Learning (LSTM Model)
 keras
