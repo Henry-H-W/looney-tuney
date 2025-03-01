@@ -132,7 +132,7 @@ def create_network_add_weights(network_input, n_vocab):
     # get the most recently created/modified MIDI file
     latest_model_weights = max(model_weights, key=os.path.getctime)
 
-    print(f"Processing most recent MIDI file: {latest_model_weights}")
+    print(f"Processing most recent keras file: {latest_model_weights}")
     model.load_weights(latest_model_weights)
 
     return model  # return the model with loaded weights
@@ -212,6 +212,9 @@ def create_midi(prediction_output):
         elif 'rest' in pattern:
             new_rest = note.Rest()  # create a rest without passing "rest" as an argument
             new_rest.duration.quarterLength = convert_to_float(duration)  # set the duration explicitly
+            # if a rest is greater than a bar for some reason, shorten it to a bar
+            if rest_duration > 4.0:
+                rest_duration = 4.0
             new_rest.offset = offset  # set the timing offset
             new_rest.storedInstrument = instrument.Piano()  # assign the instrument to piano
             output_notes.append(new_rest)  # add the rest to the output

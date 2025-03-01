@@ -9,8 +9,9 @@ import pickle  # to save and load serialized objects (like trained models or pre
 import datetime # for output file specification
 
 # importing music21 - a python library for handling and analyzing music notation
-from music21 import converter, instrument, stream, note, chord
+from music21 import converter, instrument, stream, note, chord, pitch, interval
 from collections import Counter
+import random
 
 # importing deep learning tools from Keras
 from keras.models import Sequential  # for building sequential neural networks
@@ -132,66 +133,131 @@ def create_network_add_weights(network_input, n_vocab):
     # get the most recently created/modified MIDI file
     latest_model_weights = max(model_weights, key=os.path.getctime)
 
-    print(f"Processing most recent MIDI file: {latest_model_weights}")
+    print(f"Processing most recent keras file: {latest_model_weights}")
     model.load_weights(latest_model_weights)
 
     return model  # return the model with loaded weights
 
+def get_seed_note_from_latest_midi():
+    """
+    Find the most recent .mid file in the working directory, parse it,
+    and return its last note as a string (e.g., "C3 1.0").
+    If the last element is a chord, take the first note of the chord.
+    """
+    # Find all .mid files
+    midi_files = glob.glob("*.mid")
+    if not midi_files:
+        raise FileNotFoundError("No .mid files found in the working directory.")
+    
+    # Get the most recent .mid file by creation/modification time
+    latest_midi = max(midi_files, key=os.path.getctime)
+    print(f"Using most recent midi file: {latest_midi} for seed note extraction")
+    
+    # Parse the MIDI file using music21
+    midi_stream = converter.parse(latest_midi)
+    
+    # Try to partition by instrument; if unavailable, use flat notes
+    parts = instrument.partitionByInstrument(midi_stream)
+    if parts: 
+        notes_to_parse = parts.parts[0].recurse()
+    else:
+        notes_to_parse = midi_stream.flat.notes
+    
+    # Gather all notes and chords
+    elements = []
+    for element in notes_to_parse:
+        if isinstance(element, note.Note):
+            # Format as "Pitch Duration"
+            elements.append(f"{element.pitch} {element.duration.quarterLength}")
+        elif isinstance(element, chord.Chord):
+            # For chords, take the first pitch
+            elements.append(f"{element.pitches[0]} {element.duration.quarterLength}")
+    
+    if not elements:
+        raise ValueError("No note elements found in the latest MIDI file.")
+    
+    # Return the last element found
+    seed_note = elements[-1]
+    print("Extracted seed note:", seed_note)
+    return seed_note
+
+def next_seed(seed_str):
+    """
+    Given a seed note string (e.g., "C3 1.0"), return the next note by transposing
+    the pitch up by one semitone while keeping the duration unchanged.
+    """
+    parts = seed_str.split()
+    note_part = parts[0]
+    duration = parts[1] if len(parts) > 1 else "1.0"
+    p = pitch.Pitch(note_part)
+    new_pitch = p.transpose(interval.Interval(1))  # transpose up by one semitone
+    return f"{new_pitch.nameWithOctave} {duration}"
+
 def generate_notes(model, network_input, pitchnames, n_vocab):
     """ generate notes from the neural network based on a sequence of notes """
+    
+    # Create mappings from note names to integers and vice versa
+    note_to_int = {note: number for number, note in enumerate(pitchnames)}
+    int_to_note = {number: note for number, note in enumerate(pitchnames)}
+    
+    # Use an initial seed note (without hardcoding fallback alternatives)
+    seed_note = get_seed_note_from_latest_midi()  # starting point; you can change this as desired
+    max_attempts = 12  # maximum fallback attempts (e.g., an octave's worth)
+    pattern = None
+    used_seed_note = None
+    attempt = 0
 
-    # pick a random sequence from the input as a starting point for the prediction
-    start = np.random.randint(0, len(network_input)-1)
-    # possible experiment: start from the end of a user-imputted midi file to 'extend' their desired song?
+    while attempt < max_attempts and pattern is None:
+        if seed_note not in note_to_int:
+            print(f"Seed note {seed_note} not found in training data. Trying next note.")
+            seed_note = next_seed(seed_note)
+            attempt += 1
+            continue
+        
+        desired_seed_value = note_to_int[seed_note]
+        # Instead of breaking at the first match, collect all matching sequences.
+        matching_sequences = [seq.copy() for seq in network_input if seq[-1] == desired_seed_value]
+        
+        if matching_sequences:
+            # Randomly pick one sequence from the list.
+            pattern = random.choice(matching_sequences)
+            used_seed_note = seed_note
+            break
+        else:
+            print(f"No sequence ending with {seed_note} found. Trying next note.")
+            seed_note = next_seed(seed_note)
+            attempt += 1
 
-    # create a dictionary to map integer values back to their corresponding notes
-    int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
+    if pattern is None:
+        raise ValueError("No seed sequence ending with a valid note candidate was found in network_input.")
 
-    # get the starting sequence pattern from the input data
-    pattern = network_input[start]
+    print("Selected seed sequence (notes):", [int_to_note[i] for i in pattern])
 
-    # initialize an empty list to store the generated notes
     prediction_output = []
-
-    # generate 300 notes (this controls the length of the generated music)
-    for note_index in range(300):
-        # reshape the pattern to match the lstm model's expected input shape: (samples, time steps, features)
+    # Generate 150 notes using the seed sequence
+    for note_index in range(150):
         prediction_input = np.reshape(pattern, (1, len(pattern), 1))
-
-        # normalize the input values to match the training scale
         prediction_input = prediction_input / float(n_vocab)
-
-        # get the model's prediction for the next note
         prediction = model.predict(prediction_input, verbose=0)
-
-        # get the index of the highest probability note from the prediction output
         index = np.argmax(prediction)
-        # we could also do np.random.choice(len(prediction[0]), p=prediction[0]) for more randomness
-
-        # convert the predicted index back to its corresponding note
         result = int_to_note[index]
-
-        # store the predicted note
         prediction_output.append(result)
-
-        # update the input pattern by appending the new prediction and removing the first element
         pattern.append(index)
-        pattern = pattern[1:len(pattern)]  # keep the sequence length constant
-
-    return prediction_output  # return the list of generated notes
+        pattern = pattern[1:]
+    
+    return prediction_output
 
 def create_midi(prediction_output):
     """ convert the output from the prediction to notes and create a midi file """
-
     offset = 0  # keeps track of time to avoid overlapping notes
     output_notes = []  # list to store the generated musical elements (notes, chords, rests)
 
     # iterate through each predicted pattern (note, chord, or rest)
     for pattern in prediction_output:
-        pattern = pattern.split()  # split the pattern to separate the note/chord name and duration
-        temp = pattern[0]  # extract the musical element (note, chord, or rest)
-        duration = pattern[1]  # extract the duration of the note/chord/rest
-        pattern = temp  # assign the extracted note/chord/rest back to pattern
+        pattern = pattern.split()  # split to separate the musical element and duration
+        temp = pattern[0]         # musical element (note, chord, or rest)
+        duration = pattern[1]     # duration as a string
+        pattern = temp            # reassign the musical element back to pattern
 
         # check if the pattern represents a chord (multiple notes played together)
         if ('.' in pattern) or pattern.isdigit():
@@ -208,28 +274,32 @@ def create_midi(prediction_output):
             new_chord.offset = offset
             output_notes.append(new_chord)
 
-        # check if the pattern represents a rest (a pause in the music)
+        # check if the pattern represents a rest
         elif 'rest' in pattern:
-            new_rest = note.Rest()  # create a rest without passing "rest" as an argument
-            new_rest.duration.quarterLength = convert_to_float(duration)  # set the duration explicitly
-            new_rest.offset = offset  # set the timing offset
-            new_rest.storedInstrument = instrument.Piano()  # assign the instrument to piano
-            output_notes.append(new_rest)  # add the rest to the output
+            new_rest = note.Rest()  # create a rest object
+            # Convert duration to float and cap it at 4.0 if necessary
+            rest_duration = convert_to_float(duration)
+            if rest_duration > 4.0:
+                rest_duration = 4.0
+            new_rest.duration.quarterLength = rest_duration
+            new_rest.offset = offset
+            new_rest.storedInstrument = instrument.Piano()
+            output_notes.append(new_rest)
 
         # if the pattern is a single note
         else:
             new_note = note.Note(pattern)  # create a note object
-            new_note.offset = offset  # set the timing offset
-            new_note.storedInstrument = instrument.Piano()  # assign the instrument to piano
-            output_notes.append(new_note)  # add the note to the output
+            new_note.offset = offset
+            new_note.storedInstrument = instrument.Piano()
+            output_notes.append(new_note)
 
-        # increase the offset to space out the notes and prevent stacking
-        offset += convert_to_float(duration)
+        # increase the offset by the (possibly capped) duration
+        offset += (rest_duration if 'rest' in pattern else convert_to_float(duration))
 
     # create a midi stream from the generated notes and chords
     midi_stream = stream.Stream(output_notes)
 
-    # write the midi stream to a file
+    # write the midi stream to a file with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     midi_filename = f"generated_music_{timestamp}.mid"
     midi_stream.write('midi', fp=midi_filename)
