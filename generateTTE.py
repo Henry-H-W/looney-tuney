@@ -53,8 +53,9 @@ def generate_music02(scale: int, filepath: str):
                          current_velocity=random.randint(80, 110),
                          left_hand_shift=random.randint(-3, -1))
     add_one_interval(current_index=4 * intervals, current_velocity=50)
-    myStream.write('midi', fp=filepath)
+    myStream.write('mid', fp=filepath)
 
 
 if __name__ == '__main__':
-    generate_music02(64, 'example.midi')
+    random_scale = random.randint(48, 72)  # random root note within a musical range
+    generate_music02(64, 'generated_output.mid')

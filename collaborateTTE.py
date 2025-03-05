@@ -2,6 +2,7 @@ from MinorMusicGenerator import MinorMusicGenerator
 from music21 import converter, note, stream, chord, key, meter
 import random
 import collections
+import os
 
 def extend_midi(input_filepath: str, output_filepath: str, additional_intervals: int = 30):
     OCTAVE_SHIFT = 12
@@ -111,4 +112,11 @@ def extend_midi(input_filepath: str, output_filepath: str, additional_intervals:
 
 
 if __name__ == '__main__':
-    extend_midi('test.mid', 'extended_output.mid', additional_intervals=30)
+    # find the most recent MIDI file in the directory
+    midi_files = [f for f in os.listdir() if f.endswith(".mid")]
+    if not midi_files:
+        raise FileNotFoundError("No MIDI files found in the directory.")
+
+    # get the most recently created/modified MIDI file
+    latest_midi = max(midi_files, key=os.path.getctime)
+    extend_midi(latest_midi, 'extended_output.mid', additional_intervals=30)
