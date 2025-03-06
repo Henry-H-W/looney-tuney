@@ -26,11 +26,16 @@ def generatePgColormap(cm_name):
 
 # ----- Constants and Parameters -----
 CHUNKSIZE = 2048        # Base chunk size (samples)
-N_FFT = 16384           # FFT length for high resolution
+N_FFT = 4096           # FFT length for high resolution
 WATERFALL_DURATION = 10  # seconds to show in waterfall
 OVERLAP_RATIO = 0.5     # 50% overlap for smoother scrolling
 chunk_size = int(CHUNKSIZE * (1 - OVERLAP_RATIO))  # step size per update
 EPS = 1e-8
+
+# Define colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+GRAY = (100, 100, 100)
 
 # ----- Find and load the most recent audio file -----
 audio_files = [f for f in os.listdir() if f.endswith((".wav", ".mp3"))]
@@ -66,11 +71,25 @@ waterfall_image_data = np.full((num_freq_bins, WATERFALL_FRAMES), -10, dtype=np.
 
 # ----- Setup Pygame -----
 pygame.init()
-window_width, window_height = pygame.display.Info().current_w, pygame.display.Info().current_h - 75
+window_width, window_height = pygame.display.Info().current_w, pygame.display.Info().current_h # - 75
 screen = pygame.display.set_mode((window_width, window_height))
 pygame.display.set_caption("Live Waterfall Spectrogram (Audio File)")
-font = pygame.font.SysFont("Arial", 24)
+boldfont = pygame.font.SysFont("latoblack", 34)
+font = pygame.font.SysFont("latolight", 34)
+buttonfont = pygame.font.SysFont("latolight", 25)
 clock = pygame.time.Clock()
+# Load the PNG overlay
+overlay_image1 = pygame.image.load(r"gui_assets\logo.png").convert_alpha()  # Preserve transparency
+overlay_image1 = pygame.transform.scale(overlay_image1, (150, 150))  # Resize if needed
+overlay_image2 = pygame.image.load(r"gui_assets\slur.png").convert_alpha()  # Preserve transparency
+overlay_image2 = pygame.transform.scale(overlay_image2, (30, 8.5))  # Resize if needed (50, 17)
+
+# Define button properties
+button_width, button_height = 200, 50
+button1_1 = pygame.Rect(50, 270, button_width, button_height)
+button1_2 = pygame.Rect(250, 270, button_width, button_height)
+# Track which button is active
+active_button1 = None  # Can be "generation" or "collaboration"
 
 # ----- Select a random colormap and generate its LUT -----
 COLORMAPS = [
@@ -114,10 +133,23 @@ audio_thread.start()
 # ----- Main Loop -----
 running = True
 while running:
+    # Get mouse position
+    mouse_pos = pygame.mouse.get_pos()
+
     # Handle events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:  # Check if a key was pressed
+            if event.key == pygame.K_ESCAPE:  # If ESCAPE key is pressed
+                running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if button1_1.collidepoint(event.pos):
+                print("Generation button clicked!")
+                active_button1 = "generation"
+            elif button1_2.collidepoint(event.pos):
+                print("Collaboration button clicked!")
+                active_button1 = "collaboration"
 
     # Only update waterfall if playback has started
     if start_time is not None:
@@ -177,10 +209,44 @@ while running:
             # End of audio: optionally, you might break out or freeze the display.
             pass
 
-    # Overlay text on top of the spectrogram
-    text_surface = font.render("Hello World! This is an AI Music Composer tool (not yet)", True, (255, 255, 255))
-    screen.blit(text_surface, (10, 10))
+    # Overlay the PNG image
+    screen.blit(overlay_image1, (0, 10))  # Change (100, 100) to position it differently
     
+    # Overlay text on top of the spectrogram
+    text1 = boldfont.render("Welcome to MAiSTRO: The Classical Music Composition Model!", True, (255, 255, 255))
+    screen.blit(text1, (50, 150))
+
+    # Overlay text on top of the spectrogram
+    text2 = font.render("Start by choosing between generation mode or collaboration mode:", True, (255, 255, 255))
+    screen.blit(text2, (50, 200))
+
+    # Draw buttons with dynamic colors based on selection
+    if active_button1 == "generation":
+        pygame.draw.rect(screen, WHITE, button1_1)  # White background
+        pygame.draw.rect(screen, WHITE, button1_1, 2)  # Border
+        text1_color = BLACK  # Black text
+    else:
+        pygame.draw.rect(screen, BLACK, button1_1)  # Black background
+        pygame.draw.rect(screen, WHITE, button1_1, 2)  # White border
+        text1_color = WHITE  # White text
+
+    if active_button1 == "collaboration":
+        pygame.draw.rect(screen, WHITE, button1_2)  # White background
+        pygame.draw.rect(screen, WHITE, button1_2, 2)  # Border
+        text2_color = BLACK  # Black text
+    else:
+        pygame.draw.rect(screen, BLACK, button1_2)  # Black background
+        pygame.draw.rect(screen, WHITE, button1_2, 2)  # White border
+        text2_color = WHITE  # White text
+        
+    # Render text
+    text1 = buttonfont.render("Generation", True, text1_color)
+    text2 = buttonfont.render("Collaboration", True, text2_color)
+
+    # Center text inside buttons
+    screen.blit(text1, (button1_1.x + (button_width - text1.get_width()) // 2, button1_1.y + (button_height - text1.get_height()) // 2))
+    screen.blit(text2, (button1_2.x + (button_width - text2.get_width()) // 2, button1_2.y + (button_height - text2.get_height()) // 2))
+
     # Update the display
     pygame.display.flip()
     clock.tick(30)  # Limit to ~30 FPS
