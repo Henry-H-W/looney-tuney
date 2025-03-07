@@ -88,8 +88,14 @@ overlay_image2 = pygame.transform.scale(overlay_image2, (30, 8.5))  # Resize if 
 button_width, button_height = 200, 50
 button1_1 = pygame.Rect(50, 270, button_width, button_height)
 button1_2 = pygame.Rect(250, 270, button_width, button_height)
+button_generate = pygame.Rect(50, 720, button_width, button_height)
+button_dropdown = pygame.Rect(50, 400, button_width*2.5, button_height)
+
 # Track which button is active
 active_button1 = None  # Can be "generation" or "collaboration"
+active_button2 = None #Can be "generate" or "dropdown"
+
+text3_color = WHITE  # Default color
 
 # ----- Select a random colormap and generate its LUT -----
 COLORMAPS = [
@@ -130,6 +136,34 @@ def play_audio():
 audio_thread = threading.Thread(target=play_audio, daemon=True)
 audio_thread.start()
 
+# Define dropdown menu options
+dropdown_options = ["Option 1", "Option 2", "Option 3"]
+dropdown_height = 30  # height of each option
+dropdown_active = False  # Whether dropdown is active or not
+dropdown_rects = []  # Keep track of the option rectangles
+option = "No upload port provided"
+
+def draw_dropdown_menu():
+    global dropdown_rects
+    # Draw a background for the dropdown menu
+    pygame.draw.rect(screen, WHITE, pygame.Rect(button_dropdown.x, button_dropdown.y + button_height, button_dropdown.width, dropdown_height * len(dropdown_options)))
+    
+    dropdown_rects = []  # Clear previous option rectangles
+    
+    # Draw each option in the dropdown menu
+    for i, option in enumerate(dropdown_options):
+        rect = pygame.Rect(button_dropdown.x, button_dropdown.y + button_height + i * dropdown_height, button_dropdown.width, dropdown_height)
+        dropdown_rects.append(rect)
+        
+        # Draw the option box with a black outline
+        pygame.draw.rect(screen, BLACK, rect)  # Draw black border
+        pygame.draw.rect(screen, WHITE, rect, 1)  # Add a white border (2-pixel width)
+        
+        # Render the text and center it inside the option box
+        text = buttonfont.render(option, True, WHITE)
+        screen.blit(text, (rect.x + (rect.width - text.get_width()) // 2, rect.y + (rect.height - text.get_height()) // 2))
+
+
 # ----- Main Loop -----
 running = True
 while running:
@@ -147,10 +181,29 @@ while running:
             if button1_1.collidepoint(event.pos):
                 print("Generation button clicked!")
                 active_button1 = "generation"
+                active_button2 = None
+                text3_color = WHITE
+                dropdown_active = False
+            elif button_generate.collidepoint(event.pos) and active_button1 == "generation":
+                active_button2 = "generate"
+                print("Generate button Clicked")
             elif button1_2.collidepoint(event.pos):
                 print("Collaboration button clicked!")
                 active_button1 = "collaboration"
-
+                active_button2 = None
+                text3_color = WHITE
+            elif button_dropdown.collidepoint(event.pos) and active_button1 == "collaboration":
+                active_button2 = "dropdown"
+                dropdown_active = not dropdown_active
+                print("Dropdown button clicked!")
+            if dropdown_active:
+                for i, rect in enumerate(dropdown_rects):
+                    if rect.collidepoint(event.pos):
+                        option = dropdown_options[i]
+                        print(f"Dropdown Option {i + 1} selected")
+                        dropdown_active = False  # Close the dropdown after selecting an option
+                        active_button2 = None
+               
     # Only update waterfall if playback has started
     if start_time is not None:
         elapsed_time = time.time() - start_time
@@ -225,6 +278,14 @@ while running:
         pygame.draw.rect(screen, WHITE, button1_1)  # White background
         pygame.draw.rect(screen, WHITE, button1_1, 2)  # Border
         text1_color = BLACK  # Black text
+        if active_button2 == "generate":
+            pygame.draw.rect(screen, WHITE, button_generate)  # White background
+            pygame.draw.rect(screen, WHITE, button_generate, 2)  # Border
+            text3_color = BLACK
+        else:
+            pygame.draw.rect(screen, BLACK, button_generate) 
+            pygame.draw.rect(screen, WHITE, button_generate, 2) 
+            text3_color = WHITE
     else:
         pygame.draw.rect(screen, BLACK, button1_1)  # Black background
         pygame.draw.rect(screen, WHITE, button1_1, 2)  # White border
@@ -234,18 +295,39 @@ while running:
         pygame.draw.rect(screen, WHITE, button1_2)  # White background
         pygame.draw.rect(screen, WHITE, button1_2, 2)  # Border
         text2_color = BLACK  # Black text
+        if active_button2 == "dropdown":
+            pygame.draw.rect(screen, WHITE, button_dropdown)  # White background
+            pygame.draw.rect(screen, WHITE, button_dropdown, 2)  # Border
+            text3_color = BLACK
+        else:
+            pygame.draw.rect(screen, BLACK, button_dropdown) 
+            pygame.draw.rect(screen, WHITE, button_dropdown, 2) 
+            text3_color = WHITE
     else:
         pygame.draw.rect(screen, BLACK, button1_2)  # Black background
         pygame.draw.rect(screen, WHITE, button1_2, 2)  # White border
         text2_color = WHITE  # White text
-        
+
     # Render text
     text1 = buttonfont.render("Generation", True, text1_color)
     text2 = buttonfont.render("Collaboration", True, text2_color)
+    if active_button1 == "generation":
+        text3 = buttonfont.render("Generate",True,text3_color)
+    if active_button1 == "collaboration":
+        text3 = buttonfont.render(option,True,text3_color)
+        text4 = font.render("Connect your MIDI device", True, (255, 255, 255))
 
     # Center text inside buttons
     screen.blit(text1, (button1_1.x + (button_width - text1.get_width()) // 2, button1_1.y + (button_height - text1.get_height()) // 2))
     screen.blit(text2, (button1_2.x + (button_width - text2.get_width()) // 2, button1_2.y + (button_height - text2.get_height()) // 2))
+    if active_button1 == "generation":
+        screen.blit(text3, (button_generate.x + (button_width - text3.get_width()) // 2, button_generate.y + (button_height - text3.get_height()) // 2))
+    if active_button1 == "collaboration":
+        screen.blit(text3, (70, 417))
+        screen.blit(text4, (50, 350))
+
+    if dropdown_active:
+        draw_dropdown_menu()
 
     # Update the display
     pygame.display.flip()
