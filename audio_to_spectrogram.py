@@ -58,7 +58,7 @@ if np.max(np.abs(samples)) > 0:
 # Number of waterfall frames (time resolution)
 WATERFALL_FRAMES = int(WATERFALL_DURATION * sample_rate / chunk_size)
 # Frequency vector (only keep frequencies up to FREQ_LIMIT)
-FREQ_LIMIT = 5000  # Hz (change as needed)
+FREQ_LIMIT = 4000  # Hz (change as needed)
 FREQ_VECTOR = np.fft.rfftfreq(N_FFT, d=1/sample_rate)
 freq_mask = FREQ_VECTOR <= FREQ_LIMIT
 FREQ_VECTOR = FREQ_VECTOR[freq_mask]

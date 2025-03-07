@@ -5,90 +5,89 @@ import soundfile as sf
 import numpy as np
 import pretty_midi
 
-# define sample rate for better audio quality
+# Define sample rate for better audio quality
 sample_rate = 44100
+time_scaling_factor = 1.225  # Slow down factor
 
-# find the most recent MIDI file in the directory
+# Find the most recent MIDI file in the directory
 midi_files = [f for f in os.listdir() if f.endswith(".mid")]
 if not midi_files:
     raise FileNotFoundError("No MIDI files found in the directory.")
 
-# get the most recently created/modified MIDI file
+# Get the most recently created/modified MIDI file
 latest_midi = max(midi_files, key=os.path.getctime)
-original_file_name = os.path.splitext(latest_midi)[0]  # Remove .mid extension
+original_file_name = os.path.splitext(latest_midi)[0]
 
 print(f"Processing most recent MIDI file: {latest_midi}")
 
-# load the MIDI file into a multitrack object
+# Load the MIDI file into a multitrack object
 multitrack = read(latest_midi)
 
-# convert the multitrack MIDI to PrettyMIDI format
+# Convert the multitrack MIDI to PrettyMIDI format
 pm = to_pretty_midi(multitrack)
 
-# create a new PrettyMIDI object to store processed notes
+# Get original tempo, ensuring there's a fallback value
+original_tempo = pm.estimate_tempo() if pm.get_tempo_changes()[1].size > 0 else 120.0
+adjusted_tempo = original_tempo / time_scaling_factor  # Adjust tempo for slow-down
+print(f"Original Tempo: {original_tempo}, Adjusted Tempo: {adjusted_tempo}")
+
+# Create a new PrettyMIDI object
 new_pm = pretty_midi.PrettyMIDI()
 
-# process each instrument in the MIDI file
+# **Add a Tempo Change Event at Time 0**
+tempo_change = pretty_midi.ControlChange(number=51, value=int(60000000 / adjusted_tempo), time=0)
+
+# Process each instrument in the MIDI file
 for instrument in pm.instruments:
-    new_instrument = pretty_midi.Instrument(program=instrument.program)
-    
-    # sort notes by start time
-    instrument.notes.sort(key=lambda note: note.start)
-    
-    for note in instrument.notes:
-        # preserve the original note timing and length
-        new_note = pretty_midi.Note(
-            velocity=note.velocity,
-            pitch=note.pitch,
-            start=note.start,
-            end=note.end
-        )
-        new_instrument.notes.append(new_note)
-    
-    new_pm.instruments.append(new_instrument)
+    new_instrument = pretty_midi.Instrument(program=0)
 
-# create another PrettyMIDI object for additional effects
-processed_pm = pretty_midi.PrettyMIDI()
-for instrument in new_pm.instruments:
-    processed_instrument = pretty_midi.Instrument(program=instrument.program)
-    
-    # sort notes by start time again
+    # Add tempo control change to the first instrument
+    if len(new_pm.instruments) == 0:
+        new_instrument.control_changes.append(tempo_change)
+
+    # Sort notes by start time
     instrument.notes.sort(key=lambda note: note.start)
-    
+
     for note in instrument.notes:
-        # introduce slight timing variation (-10ms to +10ms) for a more human feel
+        # Scale both start time and duration
+        new_start = note.start * time_scaling_factor
+        new_duration = max(0.05, (note.end - note.start) * time_scaling_factor)
+        new_end = new_start + new_duration
+
+        # Slight timing variation (-10ms to +10ms) for realism
         time_variation = np.random.uniform(-0.01, 0.01)
-        new_start = max(0, note.start + time_variation)
-        new_end = max(new_start + 0.05, note.end + time_variation)
+        new_start = max(0, new_start + time_variation)
+        new_end = max(new_start + 0.05, new_end + time_variation)
 
-        # create the new processed note
+        # Create new note
         new_note = pretty_midi.Note(
-            velocity=20,  # keep dynamics soft, 0 for softest and 127 for hardest
+            velocity=90,
             pitch=note.pitch,
             start=new_start,
             end=new_end
         )
-        processed_instrument.notes.append(new_note)
-    
-    processed_pm.instruments.append(processed_instrument)
+        new_instrument.notes.append(new_note)
 
-# convert the midi file to audio using a soundfont
-wave = processed_pm.fluidsynth(sf2_path=r"soundfonts/SalC5Light2.sf2", fs=sample_rate)
+    new_pm.instruments.append(new_instrument)
 
-# save the audio as a wav file
+# Convert the modified MIDI to audio using a soundfont
+soundfont_path = r"soundfonts/SalC5Light2.sf2"
+wave = new_pm.fluidsynth(sf2_path=soundfont_path, fs=sample_rate)
+
+# Save the audio as a WAV file
 sf.write("output.wav", wave, sample_rate)
 
-# load the audio file into pydub for further processing
+# Load the audio file into pydub for further processing
 segment = AudioSegment.from_wav("output.wav")
 
-# apply a low-pass filter to reduce high-frequency sharpness
-filtered_segment = segment.low_pass_filter(2500)
+# Apply a low-pass filter to reduce high-frequency sharpness
+filtered_segment = segment.low_pass_filter(500)
 
-# add subtle reverb effect by overlaying a quieter version of the same audio
+# Add subtle reverb effect by overlaying a quieter version of the same audio
 filtered_segment = filtered_segment.overlay(filtered_segment - 6, position=50)
 
-# normalize the audio to avoid overly loud or quiet sections
+# Normalize the audio to avoid overly loud or quiet sections
 filtered_segment = filtered_segment.normalize()
 
-# play the final processed audio
+# Play the final processed audio
 playback.play(filtered_segment)
