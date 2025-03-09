@@ -148,7 +148,7 @@ option = "No upload port provided"
 # Fade-in button alpha values
 button_generate_alpha = 0
 button_dropdown_alpha = 0
-fade_in_speed = 5
+fade_in_speed = 50
 button_generate_visible = False
 button_dropdown_visible = False
 
