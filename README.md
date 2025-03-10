@@ -1,4 +1,4 @@
-# LSTM Music Composition Model
+# MAiSTRO: The Classical Music Composition Model
 
 This project is a deep learning-based music composition system using Long Short-Term Memory (LSTM) neural networks. The model learns musical patterns from MIDI files and generates new music based on the learned sequences. This project is associated with Western Cyber Society and contributed by:
 - Henry Wang
@@ -9,7 +9,6 @@ This project is a deep learning-based music composition system using Long Short-
 - David Lim
 - Raymond Li
 - Leo Karras
-- Sahil Patel
 
 ## Prerequisites
 Ensure you have the necessary dependencies installed before running the project. You can install them using:
@@ -18,7 +17,7 @@ Ensure you have the necessary dependencies installed before running the project.
 pip install -r requirements.txt
 ```
 
-## Getting Started
+## Getting Started: Training the Model
 ### 1. Prepare the Dataset
 Ensure that you have your MIDI dataset inside the `dataset/` directory (make sure the files end with .mid). If some of your midi files contain multiple tracks / instruments, `midi_dataset_processing.py` can help condense everything into one track.
 
@@ -54,7 +53,17 @@ To play the generated music (using instruments from the `soundfonts/` directory)
 python midi_to_audio.py
 ```
 
-## Notes
+## Exploring Further: Applying the Model
+Now that we have a trained model, we can use it as a tool to help musicians compose by completing melodies from user-inputted midi! Through our Python GUI, you can achieve this by running:
+```bash
+python audio_to_spectrogram.py
+```
+Which uses the following scripts:
+- `keyboard_to_midi.py` to take a keyboard's input and turn it into a midi file.
+- `collaborate.py` to generate midi and effectively extend the inputted midi recording.
+- `midi_to_audio.py` to convert the new midi into audio.
+
+## Notes & Troubleshooting
 - Before running the model, make sure you have access to a GPU! CPU training is heavily discouraged due to time and resource-intensity (we recommend Google Colab for free GPU use, Jupyter Notebook versions of train.py and generate.py are provided in this repository).
 - We found that 200+ MIDI files provide the best results (a good sign is to check the size of the resulting 'notes' file: if it's 1-2Mb, you have a good amount of data!)
 - We found training for 30 epochs on a 200-file dataset works best, but this number can be different based on the dataset.
