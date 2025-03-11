@@ -2,7 +2,7 @@ from MinorMusicGenerator import MinorMusicGenerator
 from music21 import note, stream, chord
 import random
 
-def generate_music02(scale: int, filepath: str):
+def generate_music(scale: int, filepath: str):
     OCTAVE_SHIFT = 12
     new_song_generator = MinorMusicGenerator(scale)
     myStream = stream.Stream()
@@ -58,4 +58,4 @@ def generate_music02(scale: int, filepath: str):
 
 if __name__ == '__main__':
     random_scale = random.randint(48, 72)  # random root note within a musical range
-    generate_music02(64, 'generated_output.mid')
+    generate_music(64, 'generated_output.mid')

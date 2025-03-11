@@ -5,6 +5,7 @@ import random
 import threading
 from collections import deque
 import cmasher as cmr  # Import cmasher for additional colormaps
+import simpleaudio as sa
 
 import numpy as np
 import pygame
@@ -12,6 +13,9 @@ import matplotlib.pyplot as plt
 from pydub import AudioSegment
 from pydub.playback import play
 from scipy.ndimage import gaussian_filter
+
+from generateTTE import generate_music
+from midi_to_audio import convert_midi
 
 # ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
 def generatePgColormap(cm_name):
@@ -31,43 +35,15 @@ WATERFALL_DURATION = 10  # seconds to show in waterfall
 OVERLAP_RATIO = 0.5     # 50% overlap for smoother scrolling
 chunk_size = int(CHUNKSIZE * (1 - OVERLAP_RATIO))  # step size per update
 EPS = 1e-8
+spectrogram_active = False
 
 # Define colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (100, 100, 100)
 
-# ----- Find and load the most recent audio file -----
-audio_files = [f for f in os.listdir() if f.endswith((".wav", ".mp3"))]
-if not audio_files:
-    raise FileNotFoundError("No audio files found in the directory.")
-
-audio_path = max(audio_files, key=os.path.getctime)
-file_ext = os.path.splitext(audio_path)[1][1:]  # e.g., "wav" or "mp3"
-print(f"Loading audio file: {audio_path}")
-
-audio = AudioSegment.from_file(audio_path, format=file_ext).set_channels(1)  # Convert to mono
-sample_rate = audio.frame_rate
-
-# Convert audio samples to a normalized numpy float32 array
-samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
-if np.max(np.abs(samples)) > 0:
-    samples /= np.max(np.abs(samples))
-
-# ----- Compute Waterfall Dimensions -----
-# Number of waterfall frames (time resolution)
-WATERFALL_FRAMES = int(WATERFALL_DURATION * sample_rate / chunk_size)
 # Frequency vector (only keep frequencies up to FREQ_LIMIT)
 FREQ_LIMIT = 4000  # Hz (change as needed)
-FREQ_VECTOR = np.fft.rfftfreq(N_FFT, d=1/sample_rate)
-freq_mask = FREQ_VECTOR <= FREQ_LIMIT
-FREQ_VECTOR = FREQ_VECTOR[freq_mask]
-num_freq_bins = len(FREQ_VECTOR)
-
-# ----- Initialize the Waterfall Image Data -----
-# We create a 2D numpy array with shape (num_freq_bins, WATERFALL_FRAMES)
-# Each column will hold the log-magnitude spectrum from one FFT frame.
-waterfall_image_data = np.full((num_freq_bins, WATERFALL_FRAMES), -10, dtype=np.float32)
 
 # ----- Setup Pygame -----
 pygame.init()
@@ -126,19 +102,21 @@ else:
 rgb_lut = lut[:, :3]  # use only R,G,B channels
 
 # ----- Audio Playback Globals -----
-current_index = 0  # current sample index into the audio file
 start_time = None  # will be set when playback starts
-audio_finished = False  # flag to check if audio has finished
 
 def play_audio():
-    global start_time
-    start_time = time.time()  # mark playback start time
-    play(audio)  # this call blocks; run in a separate thread
-    audio_finished = True  # mark that playback is finished
-
-# Start audio playback in a separate thread
-audio_thread = threading.Thread(target=play_audio, daemon=True)
-audio_thread.start()
+    global start_time, audio_finished
+    # Play the raw audio buffer using simpleaudio (non-blocking start)
+    play_obj = sa.play_buffer(
+        audio.raw_data,
+        num_channels=audio.channels,
+        bytes_per_sample=audio.sample_width,
+        sample_rate=audio.frame_rate
+    )
+    # Set the start time immediately after initiating playback
+    start_time = time.time()
+    play_obj.wait_done()
+    audio_finished = True
 
 # Define dropdown menu options
 dropdown_options = ["Option 1", "Option 2", "Option 3"]
@@ -205,7 +183,6 @@ def fade_in(button,button_visible,button_surface,button_alpha,active_button,acti
             button_surface.blit(text1_surface, ((button_width - text1_surface.get_width()) // 2, 
                                                 (button_height - text1_surface.get_height()) // 2))
 
-
             # Blit the transparent button onto the main screen
             screen.blit(button_surface, (button.x, button.y))
 
@@ -216,6 +193,49 @@ def fade_in(button,button_visible,button_surface,button_alpha,active_button,acti
                     button_alpha = 255  # Cap at fully visible
                 pygame.time.delay(30)  # Controls fade speed
             return button_alpha
+
+def process_audio_and_start():
+    # Generate and convert MIDI (heavy processing)
+    generate_music(64, 'generated_output.mid')
+    convert_midi()
+    
+    # Reload the new audio file (assumes it’s now the most recent file)
+    audio_files = [f for f in os.listdir() if f.endswith((".wav", ".mp3"))]
+    audio_path = max(audio_files, key=os.path.getctime)
+    file_ext = os.path.splitext(audio_path)[1][1:]
+    global audio, sample_rate, samples, WATERFALL_FRAMES, FREQ_VECTOR, freq_mask, num_freq_bins, waterfall_image_data
+    audio = AudioSegment.from_file(audio_path, format=file_ext).set_channels(1)
+    sample_rate = audio.frame_rate
+
+    # Convert audio samples to a normalized numpy array
+    samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
+    if np.max(np.abs(samples)) > 0:
+        samples /= np.max(np.abs(samples))
+    
+    # Compute waterfall dimensions with the new sample_rate:
+    WATERFALL_FRAMES = int(WATERFALL_DURATION * sample_rate / chunk_size)
+    FREQ_VECTOR = np.fft.rfftfreq(N_FFT, d=1/sample_rate)
+    freq_mask = FREQ_VECTOR <= FREQ_LIMIT
+    FREQ_VECTOR = FREQ_VECTOR[freq_mask]
+    num_freq_bins = len(FREQ_VECTOR)
+    
+    # Reinitialize the waterfall image data
+    waterfall_image_data = np.full((num_freq_bins, WATERFALL_FRAMES), -10, dtype=np.float32)
+    
+    # Reset playback globals
+    global current_index, start_time, audio_finished, spectrogram_active
+    current_index = 0
+    # start_time = time.time()
+    audio_finished = False
+    
+    # Start audio playback in a new thread
+    audio_thread = threading.Thread(target=play_audio, daemon=True)
+    audio_thread.start()
+
+    # time.sleep(0.05)  # 50 ms (adjust as needed)
+    
+    # Enable the spectrogram updates
+    spectrogram_active = True
 
 # ----- Main Loop -----
 running = True
@@ -242,6 +262,9 @@ while running:
             elif button_generate.collidepoint(event.pos) and active_button1 == "generation":
                 active_button2 = "generate"
                 print("Generate button Clicked")
+                # Start processing in a separate thread
+                processing_thread = threading.Thread(target=process_audio_and_start, daemon=True)
+                processing_thread.start()
             elif button1_2.collidepoint(event.pos):
                 print("Collaboration button clicked!")
                 button_dropdown_alpha = 0 #Remove this line if you only want the dropdown to fade in once
@@ -262,7 +285,7 @@ while running:
                         active_button2 = None
                
     # Only update waterfall if playback has started
-    if start_time is not None:
+    if start_time is not None and spectrogram_active:
         # Compute elapsed time (only used while audio is active)
         elapsed_time = time.time() - start_time
 
@@ -279,6 +302,7 @@ while running:
         else:
             # Once audio has finished, use silence
             data = np.zeros(chunk_size, dtype=np.float32)
+            active_button2 = None
 
         # Compute FFT using a Hanning window; apply the frequency mask
         windowed = np.hanning(len(data)) * data
