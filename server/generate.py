@@ -1,68 +1,84 @@
 import os
-import music21
-from music21 import converter, note, chord
-import pickle
 import numpy as np
-import keras
+import pickle
+from music21 import converter, note, chord, stream
 from keras.models import load_model
 
-# Get the absolute path of the current script (generate.py)
+# Define directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_FOLDER = os.path.join(BASE_DIR, "model")
+MODEL_PATH = os.path.join(MODEL_FOLDER, "best_model.keras")
+OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")  # Store generated MIDI files
+OUTPUT_FILE = os.path.join(OUTPUT_FOLDER, "generated.mid")
 
-# Construct the correct model path
-MODEL_PATH = os.path.join(BASE_DIR, "model", "best_model.keras")
+# Ensure output directory exists
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# Ensure the model file exists before loading
+# Ensure model exists before loading
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"❌ Model file not found at {MODEL_PATH}. Ensure the file exists.")
 
-# Load the model
-model = load_model(MODEL_PATH)
-print(f"✅ Model successfully loaded from: {MODEL_PATH}")
+# Load trained notes
+NOTES_PATH = os.path.join(BASE_DIR, "data", "notes")
+if not os.path.exists(NOTES_PATH):
+    raise FileNotFoundError(f"❌ Notes file not found at {NOTES_PATH}")
 
-# Constants
-SEQUENCE_LENGTH = 100  
-OUTPUT_FILE = 'server/output.mid'  # Save output in server directory
+with open(NOTES_PATH, 'rb') as filepath:
+    notes = pickle.load(filepath)
+
+# Mapping for note conversion
+pitchnames = sorted(set(notes))
+note_to_int = {note: number for number, note in enumerate(pitchnames)}
+int_to_note = {number: note for number, note in enumerate(pitchnames)}
+n_vocab = len(pitchnames)
 
 def get_notes(midi_file):
-    """ Extract notes and chords from the given MIDI file """
+    """Extract notes from the given MIDI file"""
     notes = []
-    midi = converter.parse(midi_file)  # Read the uploaded MIDI file
+    midi = converter.parse(midi_file)
     notes_to_parse = midi.flatten()
-    
+
     for element in notes_to_parse:
         if isinstance(element, note.Note):
             notes.append(str(element.pitch))
         elif isinstance(element, chord.Chord):
             notes.append('.'.join(str(n) for n in element.pitches))
-    
+
     return notes
 
 def generate_music_from_midi(midi_file, output_file):
-    """ Generate music from a MIDI file and save output as MIDI """
-    
+    """Generate music from a MIDI file"""
+    if not os.path.exists(midi_file):
+        raise FileNotFoundError(f"❌ MIDI file not found: {midi_file}")
+
+    print(f"📥 Processing MIDI file: {midi_file}")
+
     # Extract notes from the given MIDI file
     notes = get_notes(midi_file)
 
-    # Create a mapping (note → integer)
-    unique_notes = sorted(set(notes))
-    note_to_int = {note: num for num, note in enumerate(unique_notes)}
-    int_to_note = {num: note for num, note in enumerate(unique_notes)}
+    # Load trained model
+    model = load_model(MODEL_PATH)
+    print(f"✅ Model successfully loaded from: {MODEL_PATH}")
 
-    # Create input sequences for the model
+    # Convert input to sequences
+    sequence_length = 100
     input_sequences = []
-    for i in range(len(notes) - SEQUENCE_LENGTH):
-        sequence_in = notes[i:i + SEQUENCE_LENGTH]
-        input_sequences.append([note_to_int[char] for char in sequence_in])
+    
+    for i in range(len(notes) - sequence_length):
+        sequence_in = notes[i:i + sequence_length]
+        input_sequences.append([note_to_int[note] for note in sequence_in])
 
-    # Generate music sequence
+    if not input_sequences:
+        raise ValueError("❌ No valid sequences found in the MIDI file.")
+
+    # Pick a random sequence to start generating from
     start = np.random.randint(0, len(input_sequences) - 1)
     pattern = input_sequences[start]
     prediction_output = []
 
-    number_of_notes_to_generate = 100
-    for i in range(number_of_notes_to_generate):
-        input_sequence = np.reshape(pattern, (1, len(pattern), 1)) / float(len(unique_notes))
+    # Generate notes
+    for _ in range(100):  
+        input_sequence = np.reshape(pattern, (1, len(pattern), 1)) / float(n_vocab)
         prediction = model.predict(input_sequence, verbose=0)
         index = np.argmax(prediction)
         result = int_to_note[index]
@@ -71,17 +87,9 @@ def generate_music_from_midi(midi_file, output_file):
         pattern = pattern[1:]
 
     # Convert predicted notes into a MIDI file
-    output_midi = music21.stream.Stream()
-    shift = 0
+    output_midi = stream.Stream()
     for pattern in prediction_output:
-        if '.' in pattern:  # If it's a chord
-            chord_notes = [music21.note.Note() for _ in pattern.split('.')]
-            for i, note_in_chord in enumerate(pattern.split('.')):
-                chord_notes[i].pitch = music21.pitch.Pitch(note_in_chord)
-            output_midi.append(music21.chord.Chord(chord_notes, quarterLength=0.5))
-        else:  # If it's a single note
-            note_obj = music21.note.Note(pattern, quarterLength=0.5)
-            output_midi.append(note_obj)
+        output_midi.append(note.Note(pattern, quarterLength=0.5))
 
-    # Save the generated MIDI file
     output_midi.write('midi', fp=output_file)
+    print(f"✅ MIDI generated and saved at: {output_file}")
