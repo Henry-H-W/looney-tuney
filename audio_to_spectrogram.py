@@ -128,11 +128,13 @@ rgb_lut = lut[:, :3]  # use only R,G,B channels
 # ----- Audio Playback Globals -----
 current_index = 0  # current sample index into the audio file
 start_time = None  # will be set when playback starts
+audio_finished = False  # flag to check if audio has finished
 
 def play_audio():
     global start_time
     start_time = time.time()  # mark playback start time
     play(audio)  # this call blocks; run in a separate thread
+    audio_finished = True  # mark that playback is finished
 
 # Start audio playback in a separate thread
 audio_thread = threading.Thread(target=play_audio, daemon=True)
@@ -140,7 +142,7 @@ audio_thread.start()
 
 # Define dropdown menu options
 dropdown_options = ["Option 1", "Option 2", "Option 3"]
-dropdown_height = 30  # height of each option
+dropdown_height = 50  # height of each option
 dropdown_active = False  # Whether dropdown is active or not
 dropdown_rects = []  # Keep track of the option rectangles
 option = "No upload port provided"
@@ -180,7 +182,7 @@ def draw_dropdown_menu():
         
         # Render the text and center it inside the option box
         text = buttonfont.render(option, True, WHITE)
-        screen.blit(text, (rect.x + (rect.width - text.get_width()) // 2, rect.y + (rect.height - text.get_height()) // 2))
+        screen.blit(text, (65, rect.y + (rect.height - text.get_height()) // 2))
 
 def fade_in(button,button_visible,button_surface,button_alpha,active_button,activity,button_width,button_height,text):
     if button_visible:
@@ -202,6 +204,7 @@ def fade_in(button,button_visible,button_surface,button_alpha,active_button,acti
             # Center text inside the button surface
             button_surface.blit(text1_surface, ((button_width - text1_surface.get_width()) // 2, 
                                                 (button_height - text1_surface.get_height()) // 2))
+
 
             # Blit the transparent button onto the main screen
             screen.blit(button_surface, (button.x, button.y))
@@ -247,7 +250,7 @@ while running:
                 text5_color = WHITE
                 button_dropdown_visible = True
             elif button_dropdown.collidepoint(event.pos) and active_button1 == "collaboration":
-                active_button2 = "dropdown"
+                # active_button2 = "dropdown"
                 dropdown_active = not dropdown_active
                 print("Dropdown button clicked!")
             if dropdown_active:
@@ -260,61 +263,60 @@ while running:
                
     # Only update waterfall if playback has started
     if start_time is not None:
+        # Compute elapsed time (only used while audio is active)
         elapsed_time = time.time() - start_time
-        samples_played = int(elapsed_time * audio.frame_rate)  # Actual samples played
-        current_index = min(samples_played, len(samples) - chunk_size)  # Ensure we don’t go out of bounds
 
-        if current_index + chunk_size < len(samples):
-            # Get the next chunk from the audio samples
-            data = samples[current_index: current_index + chunk_size]
-            current_index += chunk_size
+        if not audio_finished:
+            # While audio is playing, update current_index based on elapsed time
+            samples_played = int(elapsed_time * audio.frame_rate)  # Actual samples played
+            current_index = min(samples_played, len(samples) - chunk_size)  # Ensure we don’t go out of bounds
 
-            # Compute FFT using a Hanning window; apply the frequency mask
-            windowed = np.hanning(len(data)) * data
-            X = np.abs(np.fft.rfft(windowed, n=N_FFT))[freq_mask]
-            new_frame = np.log10(X + 1e-12)  # take log (avoid log(0))
-            
-            # Scroll the waterfall image left by one column and add the new frame at the right
-            waterfall_image_data = np.roll(waterfall_image_data, -1, axis=1)
-            waterfall_image_data[:, -1] = new_frame
-
-            # Force very low values to -10 (pure black background)
-            waterfall_image_data[waterfall_image_data < -10] = -10
-
-            # Apply Gaussian blur to smooth the display
-            waterfall_blurred = gaussian_filter(waterfall_image_data, sigma=0.75)
-
-            # Normalize the data to [0, 255]
-            min_val = waterfall_blurred.min()
-            max_val = waterfall_blurred.max()
-            if max_val - min_val > 0:
-                normalized = (waterfall_blurred - min_val) / (max_val - min_val)
+            if current_index + chunk_size < len(samples):
+                data = samples[current_index: current_index + chunk_size]
+                current_index += chunk_size
             else:
-                normalized = waterfall_blurred - min_val
-            normalized = (normalized * 255).astype(np.uint8)
-
-            # Map normalized values to colors using the LUT (vectorized lookup)
-            # The result is an array of shape (num_freq_bins, WATERFALL_FRAMES, 3)
-            # Adjust brightness by scaling the RGB values (lower values = darker)
-            brightness_factor = 0.5  # Adjust between 0 (black) and 1 (full brightness)
-            color_image = (rgb_lut[normalized] * brightness_factor).astype(np.uint8)
-
-            #color_image = rgb_lut[normalized]
-
-            # Create a pygame surface from the color image.
-            # Note: pygame.surfarray.make_surface expects an array with shape (width, height, 3),
-            # so we transpose the array (time axis becomes x, frequency axis becomes y)
-            surf_array = np.transpose(color_image, (1, 0, 2))
-            spec_surface = pygame.surfarray.make_surface(surf_array)
-            
-            # Scale the spectrogram surface to fill the window
-            spec_surface = pygame.transform.scale(spec_surface, (window_width, window_height))
-
-            # Blit the spectrogram onto the screen
-            screen.blit(spec_surface, (0, 0))
+                data = np.zeros(chunk_size, dtype=np.float32)
         else:
-            # End of audio: optionally, you might break out or freeze the display.
-            pass
+            # Once audio has finished, use silence
+            data = np.zeros(chunk_size, dtype=np.float32)
+
+        # Compute FFT using a Hanning window; apply the frequency mask
+        windowed = np.hanning(len(data)) * data
+        X = np.abs(np.fft.rfft(windowed, n=N_FFT))[freq_mask]
+        new_frame = np.log10(X + 1e-12)  # take log (avoid log(0))
+        
+        # Scroll the waterfall image left by one column and add the new frame at the right
+        waterfall_image_data = np.roll(waterfall_image_data, -1, axis=1)
+        waterfall_image_data[:, -1] = new_frame
+
+        # Force very low values to -10 (pure black background)
+        waterfall_image_data[waterfall_image_data < -10] = -10
+
+        # Apply Gaussian blur to smooth the display
+        waterfall_blurred = gaussian_filter(waterfall_image_data, sigma=0.75)
+
+        # Normalize the data to [0, 255]
+        min_val = waterfall_blurred.min()
+        max_val = waterfall_blurred.max()
+        if max_val - min_val > 0:
+            normalized = (waterfall_blurred - min_val) / (max_val - min_val)
+        else:
+            normalized = waterfall_blurred - min_val
+        normalized = (normalized * 255).astype(np.uint8)
+
+        # Map normalized values to colors using the LUT (vectorized lookup)
+        brightness_factor = 0.5  # Adjust brightness factor as needed
+        color_image = (rgb_lut[normalized] * brightness_factor).astype(np.uint8)
+
+        # Create a pygame surface from the color image.
+        surf_array = np.transpose(color_image, (1, 0, 2))
+        spec_surface = pygame.surfarray.make_surface(surf_array)
+        
+        # Scale the spectrogram surface to fill the window
+        spec_surface = pygame.transform.scale(spec_surface, (window_width, window_height))
+
+        # Blit the spectrogram onto the screen
+        screen.blit(spec_surface, (0, 0))
 
     # Overlay the PNG image
     screen.blit(overlay_image1, (0, 10))  # Change (100, 100) to position it differently
@@ -364,7 +366,7 @@ while running:
     screen.blit(text2, (button1_2.x + (button_width - text2.get_width()) // 2, button1_2.y + (button_height - text2.get_height()) // 2))
     
     if active_button1 == "collaboration":
-        screen.blit(text4, (50, 350))
+        screen.blit(text4, (50, 340))
 
     if dropdown_active:
         draw_dropdown_menu()
