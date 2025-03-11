@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import Image from "next/image";
 import { Button } from "@/app/components/ui/button";
@@ -10,58 +10,95 @@ import { Midi } from "@tonejs/midi";
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-const [uploadMessage, setUploadMessage] = useState<string>("");
-const [generatedFileUrl, setGeneratedFileUrl] = useState<string | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<string>("");
+  const [generatedFileUrl, setGeneratedFileUrl] = useState<string | null>(null);
+  const [generatedFileName, setGeneratedFileName] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  if (event.target.files && event.target.files.length > 0) {
-    setSelectedFile(event.target.files[0]);
-  }
-};
-
-const handleUpload = async () => {
-  if (!selectedFile) {
-    setUploadMessage("Please select a file first.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("file", selectedFile);
-
-  try {
-    const response = await fetch("http://localhost:5000/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      setGeneratedFileUrl(`http://localhost:5000/output.mid`);
-      setUploadMessage("File uploaded and processed successfully! Play the generated music below.");
-    } else {
-      setUploadMessage("File upload failed.");
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedFile(event.target.files[0]);
+      setErrorMessage(null); // Reset errors on file change
     }
-  } catch (error) {
-    setUploadMessage("Error uploading file.");
-  }
-};
+  };
 
-const handlePlay = async () => {
-  if (!generatedFileUrl) return;
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setUploadMessage("Please select a file first.");
+      return;
+    }
 
-  const midi = await fetch(generatedFileUrl).then((res) => res.arrayBuffer());
-  const parsed = new Midi(midi);
-  const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+    const formData = new FormData();
+    formData.append("file", selectedFile);
 
-  parsed.tracks.forEach((track) => {
-    track.notes.forEach((note) => {
-      synth.triggerAttackRelease(note.name, note.duration, note.time);
+    try {
+      const response = await fetch("http://localhost:5000/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        setUploadMessage("File uploaded successfully! You can now generate music.");
+        setErrorMessage(null);
+      } else {
+        const errorData = await response.json();
+        setUploadMessage("File upload failed.");
+        setErrorMessage(errorData.error || "An unknown error occurred during upload.");
+      }
+    } catch (error) {
+      setUploadMessage("Error uploading file.");
+      setErrorMessage(error instanceof Error ? error.message : "An unknown network error occurred.");
+    }
+  };
+
+  const handlePlay = async () => {
+    if (!generatedFileUrl) return;
+
+    const midi = await fetch(generatedFileUrl).then((res) => res.arrayBuffer());
+    const parsed = new Midi(midi);
+    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+
+    parsed.tracks.forEach((track) => {
+      track.notes.forEach((note) => {
+        synth.triggerAttackRelease(note.name, note.duration, note.time);
+      });
     });
-  });
 
-  Tone.Transport.start();
-};
-  
+    Tone.Transport.start();
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedFile) {
+      setErrorMessage("Please upload a file before generating.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:5000/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ filename: selectedFile.name }),  // Send the uploaded filename
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setGeneratedFileUrl(`http://localhost:5000/output/${result.generated_filename}`);
+        setGeneratedFileName(result.generated_filename);
+        setUploadMessage("Music generated successfully!");
+        setErrorMessage(null);
+      } else {
+        setUploadMessage("Music generation failed.");
+        setErrorMessage(result.error || "An unknown error occurred during generation.");
+      }
+    } catch (error) {
+      setUploadMessage("Error generating music.");
+      setErrorMessage(error instanceof Error ? error.message : "An unknown network error occurred.");
+    }
+  };
+
   return (
     <main
       className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden"
@@ -79,7 +116,7 @@ const handlePlay = async () => {
           alt="Music Logo"
           width={80}
           height={80}
-          className="rounded-full" 
+          className="rounded-full"
         />
       </div>
 
@@ -100,7 +137,7 @@ const handlePlay = async () => {
             type="file"
             className="bg-gray-900/50 border-gray-800 text-gray-400 file:bg-gray-800 file:text-white file:border-0 hover:file:bg-gray-700"
             accept=".midi,.mid"
-            onChange={handleFileChange} // ADDED
+            onChange={handleFileChange}
           />
           <Button variant="secondary" className="whitespace-nowrap" onClick={handleUpload}>
             Upload File
@@ -109,6 +146,9 @@ const handlePlay = async () => {
 
         {/* Upload Message */}
         {uploadMessage && <p className="text-green-400">{uploadMessage}</p>}
+
+        {/* Error Message Display */}
+        {errorMessage && <p className="text-red-400">{errorMessage}</p>}
 
         {/* Style Selection */}
         <div className="space-y-4 w-full">
@@ -128,24 +168,45 @@ const handlePlay = async () => {
           </div>
         </div>
 
+        {/* Generate Button */}
+        <Button
+          className="min-w-[100px] bg-gray-900/50 border-gray-800 text-white hover:bg-gray-800 hover:text-white"
+          variant="primary"
+          onClick={handleGenerate}
+        >
+          Generate Music
+        </Button>
+
         {/* Play Button */}
         <Button
           size="icon"
           className="h-16 w-16 rounded-full bg-white hover:bg-gray-200 text-black"
-          onClick={handlePlay} // ADDED
-          disabled={!generatedFileUrl} // Prevent playing if no file is generated
+          onClick={handlePlay}
+          disabled={!generatedFileUrl}
         >
           <Play className="h-8 w-8" />
         </Button>
 
-        {/* MIDI Audio Player */}
+        {/* Section to Display Generated MIDI File */}
         {generatedFileUrl && (
-          <div className="mt-4">
-            <p className="text-lg font-medium text-white">Generated Music:</p>
-            <audio controls className="w-full max-w-md">
+          <div className="mt-4 p-4 bg-gray-800 rounded-lg shadow-lg text-white text-center w-full max-w-md">
+            <h2 className="text-xl font-bold">Generated Music</h2>
+            <p className="text-gray-400">Your AI-generated MIDI file:</p>
+
+            {/* Play the Generated MIDI */}
+            <audio controls className="w-full mt-2">
               <source src={generatedFileUrl} type="audio/midi" />
               Your browser does not support the audio element.
             </audio>
+
+            {/* Download Link */}
+            <a
+              href={generatedFileUrl}
+              download={generatedFileName || "generated_music.mid"}
+              className="mt-2 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
+              Download MIDI
+            </a>
           </div>
         )}
 
