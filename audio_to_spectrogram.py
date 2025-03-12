@@ -18,6 +18,7 @@ from midi_to_audio import convert_midi
 from delete_files import delete_generated_files
 import rtmidi
 from mido import Message, MidiFile, MidiTrack
+from collaborateTTE import extend_midi
 
 # ------- Helper functions for visual aids for keyboard input ----------
 def list_midi_ports():
@@ -66,6 +67,16 @@ def do_record():
     record_midi(selected_port_index, "recording.mid", duration=15)
     is_recording = False
     print("Recording finished. Check recording.mid!")
+    # Find the most recent MIDI file in the directory
+    midi_files = [f for f in os.listdir() if f.endswith(".mid")]
+    if not midi_files:
+        raise FileNotFoundError("No MIDI files found in the directory.")
+
+    # Get the most recently created/modified MIDI file
+    latest_midi = max(midi_files, key=os.path.getctime)
+    print(f"Extending MIDI file: {latest_midi}")
+
+    extend_midi(latest_midi, 'extended_output.mid', additional_intervals=30)
 
 # ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
 def generatePgColormap(cm_name):
@@ -369,8 +380,13 @@ while running:
             elif button_record.collidepoint(event.pos) and active_button1 == "collaboration":
                 if selected_port_index is not None and dropdown_options[selected_port_index] != "No MIDI devices found":
                     print("Starting MIDI recording...")
-                    t = threading.Thread(target=do_record, daemon=True)
-                    t.start()
+                    def recording_and_processing():
+                        do_record()  # Wait for recording to complete
+                        process_audio_and_start()  # Start audio processing AFTER recording finishes
+
+                    # Start the combined function in a separate thread
+                    recording_thread = threading.Thread(target=recording_and_processing, daemon=True)
+                    recording_thread.start()
                 else:
                     print("No valid MIDI port selected.")
     
