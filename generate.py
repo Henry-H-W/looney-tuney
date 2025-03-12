@@ -213,6 +213,7 @@ def create_midi(prediction_output):
             new_rest = note.Rest()  # create a rest without passing "rest" as an argument
             new_rest.duration.quarterLength = convert_to_float(duration)  # set the duration explicitly
             # if a rest is greater than a bar for some reason, shorten it to a bar
+            rest_duration = convert_to_float(duration)
             if rest_duration > 4.0:
                 rest_duration = 4.0
             new_rest.offset = offset  # set the timing offset

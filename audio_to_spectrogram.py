@@ -26,7 +26,7 @@ def list_midi_ports():
     midi_in = rtmidi.MidiIn()
     return midi_in.get_ports()
 
-def record_midi(port_number, output_filename="output.mid", duration=20):
+def record_midi(port_number, output_filename="recording.mid", duration=15):
     """
     Records MIDI from the chosen port_number for `duration` seconds,
     and saves it to output_filename.
@@ -64,9 +64,9 @@ def record_midi(port_number, output_filename="output.mid", duration=20):
 def do_record():
     global is_recording
     is_recording = True
-    record_midi(selected_port_index, "output.mid", duration=20)
+    record_midi(selected_port_index, "recording.mid", duration=15)
     is_recording = False
-    print("Recording finished. Check output.mid!")
+    print("Recording finished. Check recording.mid!")
 
 # ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
 def generatePgColormap(cm_name):
@@ -119,7 +119,6 @@ button1_2 = pygame.Rect(250, 270, button_width, button_height)
 button_generate = pygame.Rect(50, 720, button_width, button_height)
 button_dropdown = pygame.Rect(50, 400, button_width*2.5, button_height)
 button_record = pygame.Rect(50, 650, button_width, button_height)
-button_collab_record = pygame.Rect(50, 950, button_width, button_height)
 
 # Track which button is active
 active_button1 = None  # Can be "generation" or "collaboration"
@@ -281,7 +280,6 @@ def fade_in(button, button_visible, button_surface, button_alpha, active_button,
 
 def process_audio_and_start():
     # Generate and convert MIDI (heavy processing)
-    generate_music(64, 'generated_output.mid')
     convert_midi()
     
     # Reload the new audio file (assumes it’s now the most recent file)
@@ -316,8 +314,6 @@ def process_audio_and_start():
     # Start audio playback in a new thread
     audio_thread = threading.Thread(target=play_audio, daemon=True)
     audio_thread.start()
-
-    # time.sleep(0.05)  # 50 ms (adjust as needed)
     
     # Enable the spectrogram updates
     spectrogram_active = True
@@ -347,6 +343,7 @@ while running:
             elif button_generate.collidepoint(event.pos) and active_button1 == "generation":
                 active_button2 = "generate"
                 print("Generate button Clicked")
+                generate_music(64, 'generated_output.mid')
                 # Start processing in a separate thread
                 processing_thread = threading.Thread(target=process_audio_and_start, daemon=True)
                 processing_thread.start()
@@ -374,7 +371,7 @@ while running:
                         print(f"Dropdown Option {i} selected: {option}")
                         dropdown_active = False
                         active_button2 = None
-            elif button_collab_record.collidepoint(event.pos) and active_button1 == "collaboration":
+            elif button_record.collidepoint(event.pos) and active_button1 == "collaboration":
                 if selected_port_index is not None and dropdown_options[selected_port_index] != "No MIDI devices found":
                     print("Starting MIDI recording...")
                     t = threading.Thread(target=do_record, daemon=True)
@@ -472,14 +469,14 @@ while running:
             and dropdown_options[selected_port_index] != "No MIDI devices found"):
             
             # Draw the Record button
-            pygame.draw.rect(screen, WHITE, button_collab_record)  # White background
-            pygame.draw.rect(screen, BLACK, button_collab_record, 2)  # Black border
+            pygame.draw.rect(screen, WHITE, button_record)  # White background
+            pygame.draw.rect(screen, BLACK, button_record, 2)  # Black border
             text_record = buttonfont.render("Record", True, BLACK)
             screen.blit(
                 text_record,
                 (
-                    button_collab_record.x + (button_collab_record.width - text_record.get_width()) // 2,
-                    button_collab_record.y + (button_collab_record.height - text_record.get_height()) // 2
+                    button_record.x + (button_record.width - text_record.get_width()) // 2,
+                    button_record.y + (button_record.height - text_record.get_height()) // 2
                 )
             )
         
