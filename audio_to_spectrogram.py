@@ -9,6 +9,7 @@ import simpleaudio as sa
 
 import numpy as np
 import pygame
+from pygame import mixer
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
 from pydub.playback import play
@@ -166,17 +167,36 @@ start_time = None  # will be set when playback starts
 
 def play_audio():
     global start_time, audio_finished
-    # Play the raw audio buffer using simpleaudio (non-blocking start)
-    play_obj = sa.play_buffer(
-        audio.raw_data,
-        num_channels=audio.channels,
-        bytes_per_sample=audio.sample_width,
-        sample_rate=audio.frame_rate
-    )
-    # Set the start time immediately after initiating playback
+    temp_file = "temp_output.wav"
+
+    # Export the new audio
+    audio.export(temp_file, format="wav")
+
+    # Initialize pygame mixer and load the new file
+    mixer.init()
+    mixer.music.load(temp_file)
+
+    # Play the new file
+    mixer.music.play()
+    
+    # Set the playback start time
     start_time = time.time()
-    play_obj.wait_done()
+
+    # Wait until playback finishes
+    while mixer.music.get_busy():
+        time.sleep(0.1)
+
+    # Stop and unload the mixer to release the file
+    mixer.music.stop()
+    mixer.quit()  # Ensures the file is no longer locked
     audio_finished = True
+
+    # Delete temp file after playback
+    try:
+        os.remove(temp_file)
+        print(f"Deleted temporary file: {temp_file}")
+    except Exception as e:
+        print(f"Error deleting {temp_file}: {e}")
 
 # Define dropdown menu options
 dropdown_options = ["DeepMind 12"]
