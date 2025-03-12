@@ -14,6 +14,7 @@ from pydub.playback import play
 from scipy.ndimage import gaussian_filter
 
 from generate import generate
+from generateTTE import generate_music
 from midi_to_audio import convert_midi
 from delete_files import delete_generated_files
 import rtmidi
@@ -349,8 +350,8 @@ while running:
             elif button_generate.collidepoint(event.pos) and active_button1 == "generation":
                 active_button2 = "generate"
                 print("Generate button Clicked")
-                # generate_music(64, 'generated_output.mid')
-                generate()
+                generate_music(64, 'generated_output.mid')
+                # generate()
                 # Start processing in a separate thread
                 processing_thread = threading.Thread(target=process_audio_and_start, daemon=True)
                 processing_thread.start()
