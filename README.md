@@ -17,6 +17,9 @@ Ensure you have the necessary dependencies installed before running the project.
 pip install -r requirements.txt
 ```
 
+Install and extract Fluidsynth under C:/tools/:
+https://github.com/FluidSynth/fluidsynth/releases/tag/v2.4.3 
+
 ## Getting Started: Training the Model
 ### 1. Prepare the Dataset
 Ensure that you have your MIDI dataset inside the `dataset/` directory (make sure the files end with .mid). If some of your midi files contain multiple tracks / instruments, `midi_dataset_processing.py` can help condense everything into one track.

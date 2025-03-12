@@ -117,11 +117,11 @@ button1_1 = pygame.Rect(50, 270, button_width, button_height)
 button1_2 = pygame.Rect(250, 270, button_width, button_height)
 button_generate = pygame.Rect(50, 720, button_width, button_height)
 button_dropdown = pygame.Rect(50, 400, button_width*2.5, button_height)
-button_collab_record = pygame.Rect(50, 480, 200, 50)  
+button_record = pygame.Rect(50, 650, button_width, button_height)
 
 # Track which button is active
 active_button1 = None  # Can be "generation" or "collaboration"
-active_button2 = None # Can be "generate" or "dropdown"
+active_button2 = None # Can be "generate" or "dropdown" or "record"
 
 text3_color = WHITE  # Default color
 text5_color = WHITE
@@ -187,12 +187,14 @@ option = "No upload port provided"
 # Fade-in button alpha values
 button_generate_alpha = 0
 button_dropdown_alpha = 0
+button_record_alpha = 0
 fade_in_speed = 50
 button_generate_visible = False
 button_dropdown_visible = False
 
 # Create transparent surfaces for fading buttons
 button_generate_surface = pygame.Surface((button_width, button_height), pygame.SRCALPHA)
+button_record_surface = pygame.Surface((button_width, button_height), pygame.SRCALPHA)
 button_dropdown_surface = pygame.Surface((button_width*2.5, button_height), pygame.SRCALPHA)
 
 # Function to render text with transparency
@@ -221,37 +223,40 @@ def draw_dropdown_menu():
         text = buttonfont.render(option, True, WHITE)
         screen.blit(text, (65, rect.y + (rect.height - text.get_height()) // 2))
 
-def fade_in(button,button_visible,button_surface,button_alpha,active_button,activity,button_width,button_height,text):
+def fade_in(button, button_visible, button_surface, button_alpha, active_button, activity, button_width, button_height, text):
+    # Clear the surface and apply alpha
+    button_surface.fill((0, 0, 0, 0))  # Fully transparent background
+
+    if active_button == activity:
+        pygame.draw.rect(button_surface, (255, 255, 255, button_alpha), (0, 0, button_width, button_height))
+        pygame.draw.rect(button_surface, (0, 0, 0, button_alpha), (0, 0, button_width, button_height), 2)
+        colour = BLACK
+    else:
+        pygame.draw.rect(button_surface, (0, 0, 0, button_alpha), (0, 0, button_width, button_height))
+        pygame.draw.rect(button_surface, (255, 255, 255, button_alpha), (0, 0, button_width, button_height), 2)
+        colour = WHITE
+
+    # Render text with fading effect
+    text1_surface = render_fading_text(text, buttonfont, colour, button_alpha)
+
+    # Center text inside the button surface
+    button_surface.blit(text1_surface, ((button_width - text1_surface.get_width()) // 2, 
+                                        (button_height - text1_surface.get_height()) // 2))
+
+    # Blit the transparent button onto the main screen
+    screen.blit(button_surface, (button.x, button.y))
+
+    # Smoothly fade in or out
     if button_visible:
-            # Clear the surface and apply alpha
-            button_surface.fill((0, 0, 0, 0))  # Fully transparent background
+        if button_alpha < 255:
+            button_alpha += fade_in_speed
+            button_alpha = min(button_alpha, 255)
+    else:
+        if button_alpha > 0:
+            button_alpha -= fade_in_speed
+            button_alpha = max(button_alpha, 0)
 
-            if active_button == activity:
-                pygame.draw.rect(button_surface, (255, 255, 255, button_alpha), (0, 0, button_width, button_height))
-                pygame.draw.rect(button_surface, (0, 0, 0, button_alpha), (0, 0, button_width, button_height), 2)
-                colour = BLACK
-            else:
-                pygame.draw.rect(button_surface, (0, 0, 0, button_alpha), (0, 0, button_width, button_height))
-                pygame.draw.rect(button_surface, (255, 255, 255, button_alpha), (0, 0, button_width, button_height), 2)
-                colour = WHITE
-
-            # Render text with fading effect
-            text1_surface = render_fading_text(text, buttonfont, colour, button_alpha)
-
-            # Center text inside the button surface
-            button_surface.blit(text1_surface, ((button_width - text1_surface.get_width()) // 2, 
-                                                (button_height - text1_surface.get_height()) // 2))
-
-            # Blit the transparent button onto the main screen
-            screen.blit(button_surface, (button.x, button.y))
-
-            # Smoothly fade in (both rectangle and text)
-            if button_visible and button_alpha < 255:
-                button_alpha += fade_in_speed  # Increase transparency
-                if button_alpha > 255:
-                    button_alpha = 255  # Cap at fully visible
-                pygame.time.delay(30)  # Controls fade speed
-            return button_alpha
+    return button_alpha
 
 def process_audio_and_start():
     # Generate and convert MIDI (heavy processing)
@@ -313,11 +318,11 @@ while running:
             if button1_1.collidepoint(event.pos):
                 print("Generation button clicked!")
                 active_button1 = "generation"
-                button_generate_alpha = 0 #Remove this line if you only want "generate" to fade in once
                 active_button2 = None
                 text3_color = WHITE
                 dropdown_active = False
                 button_generate_visible = True
+                button_dropdown_visible = False
             elif button_generate.collidepoint(event.pos) and active_button1 == "generation":
                 active_button2 = "generate"
                 print("Generate button Clicked")
@@ -326,15 +331,19 @@ while running:
                 processing_thread.start()
             elif button1_2.collidepoint(event.pos):
                 print("Collaboration button clicked!")
-                button_dropdown_alpha = 0 #Remove this line if you only want the dropdown to fade in once
                 active_button1 = "collaboration"
                 active_button2 = None
                 text5_color = WHITE
                 button_dropdown_visible = True
+                button_generate_visible = False
             elif button_dropdown.collidepoint(event.pos) and active_button1 == "collaboration":
-                # active_button2 = "dropdown"
+                active_button2 = "dropdown"
                 dropdown_active = not dropdown_active
                 print("Dropdown button clicked!")
+            elif button_record.collidepoint(event.pos) and active_button1 == "collaboration":
+                active_button2 = "record"
+                dropdown_active = False
+                print("Record button clicked!")
             if dropdown_active:
                 for i, rect in enumerate(dropdown_rects):
                     if rect.collidepoint(event.pos):
@@ -430,7 +439,8 @@ while running:
         text1_color = BLACK  # Black text
 
         button_generate_alpha = fade_in(button_generate,button_generate_visible,button_generate_surface,button_generate_alpha,active_button2,"generate",button_width,button_height,"Generate")
-        
+        button_dropdown_alpha = fade_in(button_dropdown,button_dropdown_visible,button_dropdown_surface,button_dropdown_alpha,active_button2,"dropdown",button_width*2.5,button_height,option)
+        button_record_alpha = fade_in(button_record,button_dropdown_visible,button_record_surface,button_record_alpha,active_button2,"record",button_width,button_height,"Record")
     else:
         pygame.draw.rect(screen, BLACK, button1_1)  # Black background
         pygame.draw.rect(screen, WHITE, button1_1, 2)  # White border
@@ -453,6 +463,8 @@ while running:
             )
         
         button_dropdown_alpha = fade_in(button_dropdown,button_dropdown_visible,button_dropdown_surface,button_dropdown_alpha,active_button2,"dropdown",button_width*2.5,button_height,option)
+        button_generate_alpha = fade_in(button_generate,button_generate_visible,button_generate_surface,button_generate_alpha,active_button2,"generate",button_width,button_height,"Generate")
+        button_record_alpha = fade_in(button_record,button_dropdown_visible,button_record_surface,button_record_alpha,active_button2,"record",button_width,button_height,"Record")
 
     else:
         pygame.draw.rect(screen, BLACK, button1_2)  # Black background
@@ -463,15 +475,12 @@ while running:
     text1 = buttonfont.render("Generation", True, text1_color)
     text2 = buttonfont.render("Collaboration", True, text2_color)
    
-    if active_button1 == "collaboration":
-        text4 = font.render("Connect your MIDI device", True, (255, 255, 255))
+    text4_surface = render_fading_text("Connect your MIDI device",font,WHITE,button_dropdown_alpha)
+    screen.blit(text4_surface, (50, 350))
 
     # Center text inside buttons
     screen.blit(text1, (button1_1.x + (button_width - text1.get_width()) // 2, button1_1.y + (button_height - text1.get_height()) // 2))
     screen.blit(text2, (button1_2.x + (button_width - text2.get_width()) // 2, button1_2.y + (button_height - text2.get_height()) // 2))
-    
-    if active_button1 == "collaboration":
-        screen.blit(text4, (50, 340))
 
     if dropdown_active:
         draw_dropdown_menu()

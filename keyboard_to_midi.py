@@ -8,6 +8,8 @@ import time
 # processing later gets messed up (in midi_to_audio.py) unless you play 
 # as soon as you're allowed to... weird i know
 
+# you might have to reinstall python-rtmidi if it doesn't work
+
 # Function to list available MIDI input ports
 def list_midi_ports():
     midi_in = rtmidi.MidiIn()
@@ -54,6 +56,6 @@ if __name__ == "__main__":
             if port_number < 0 or port_number >= len(ports):
                 print("Invalid port number.")
             else:
-                record_midi(port_number, "output.mid", duration=20)
+                record_midi(port_number, "recording.mid", duration=20)
         except ValueError:
             print("Please enter a valid number.")
