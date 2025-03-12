@@ -16,6 +16,56 @@ from scipy.ndimage import gaussian_filter
 
 from generateTTE import generate_music
 from midi_to_audio import convert_midi
+import rtmidi
+from mido import Message, MidiFile, MidiTrack
+
+# ------- Helper functions for visual aids for keyboard input ----------
+def list_midi_ports():
+    """Return a list of available MIDI input port names."""
+    midi_in = rtmidi.MidiIn()
+    return midi_in.get_ports()
+
+def record_midi(port_number, output_filename="output.mid", duration=20):
+    """
+    Records MIDI from the chosen port_number for `duration` seconds,
+    and saves it to output_filename.
+    """
+    print(f"Recording MIDI for {duration} seconds on port {port_number}...")
+
+    # Set up rtmidi
+    midi_in = rtmidi.MidiIn()
+    midi_in.open_port(port_number)
+
+    # Create a new MidiFile with a single track
+    midi_file = MidiFile()
+    track = MidiTrack()
+    midi_file.tracks.append(track)
+
+    start_time = time.time()
+    last_time = start_time
+
+    while time.time() - start_time < duration:
+        msg_and_dt = midi_in.get_message()
+        if msg_and_dt:
+            msg, delta_time = msg_and_dt
+            # Convert the rtmidi message to Mido Message
+            # The first 3 bytes are usually [status, note, velocity]
+            # rtmidi returns delta_time in seconds as well
+            mido_msg = Message.from_bytes(msg, time=int(delta_time * 1000))
+            track.append(mido_msg)
+        else:
+            time.sleep(0.01)
+
+    midi_in.close_port()
+    midi_file.save(output_filename)
+    print(f"MIDI recording saved as {output_filename}")
+
+def do_record():
+    global is_recording
+    is_recording = True
+    record_midi(selected_port_index, "output.mid", duration=20)
+    is_recording = False
+    print("Recording finished. Check output.mid!")
 
 # ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
 def generatePgColormap(cm_name):
@@ -67,6 +117,7 @@ button1_1 = pygame.Rect(50, 270, button_width, button_height)
 button1_2 = pygame.Rect(250, 270, button_width, button_height)
 button_generate = pygame.Rect(50, 720, button_width, button_height)
 button_dropdown = pygame.Rect(50, 400, button_width*2.5, button_height)
+button_collab_record = pygame.Rect(50, 480, 200, 50)  
 
 # Track which button is active
 active_button1 = None  # Can be "generation" or "collaboration"
@@ -74,6 +125,14 @@ active_button2 = None # Can be "generate" or "dropdown"
 
 text3_color = WHITE  # Default color
 text5_color = WHITE
+is_recording = False
+
+midi_ports = list_midi_ports()
+if not midi_ports:
+    midi_ports = ["No MIDI devices found"]
+dropdown_options = midi_ports  # use actual port list in the dropdown
+selected_port_index = None
+option = "No upload port provided"
 
 # ----- Select a random colormap and generate its LUT -----
 COLORMAPS = [
@@ -119,7 +178,7 @@ def play_audio():
     audio_finished = True
 
 # Define dropdown menu options
-dropdown_options = ["Option 1", "Option 2", "Option 3"]
+dropdown_options = ["DeepMind 12"]
 dropdown_height = 50  # height of each option
 dropdown_active = False  # Whether dropdown is active or not
 dropdown_rects = []  # Keep track of the option rectangles
@@ -279,11 +338,22 @@ while running:
             if dropdown_active:
                 for i, rect in enumerate(dropdown_rects):
                     if rect.collidepoint(event.pos):
+                        # The user picked the i-th option from the dropdown
                         option = dropdown_options[i]
-                        print(f"Dropdown Option {i + 1} selected")
-                        dropdown_active = False  # Close the dropdown after selecting an option
+                        selected_port_index = i
+                        print(f"Dropdown Option {i} selected: {option}")
+                        dropdown_active = False
                         active_button2 = None
-               
+            elif button_collab_record.collidepoint(event.pos) and active_button1 == "collaboration":
+                if selected_port_index is not None and dropdown_options[selected_port_index] != "No MIDI devices found":
+                    print("Starting MIDI recording...")
+                    t = threading.Thread(target=do_record, daemon=True)
+                    t.start()
+                else:
+                    print("No valid MIDI port selected.")
+    
+    screen.fill(BLACK)
+
     # Only update waterfall if playback has started
     if start_time is not None and spectrogram_active:
         # Compute elapsed time (only used while audio is active)
@@ -367,9 +437,20 @@ while running:
         text1_color = WHITE  # White text
 
     if active_button1 == "collaboration":
-        pygame.draw.rect(screen, WHITE, button1_2)  # White background
-        pygame.draw.rect(screen, WHITE, button1_2, 2)  # Border
-        text2_color = BLACK  # Black text
+        if (selected_port_index is not None 
+            and dropdown_options[selected_port_index] != "No MIDI devices found"):
+            
+            # Draw the Record button
+            pygame.draw.rect(screen, WHITE, button_collab_record)  # White background
+            pygame.draw.rect(screen, BLACK, button_collab_record, 2)  # Black border
+            text_record = buttonfont.render("Record", True, BLACK)
+            screen.blit(
+                text_record,
+                (
+                    button_collab_record.x + (button_collab_record.width - text_record.get_width()) // 2,
+                    button_collab_record.y + (button_collab_record.height - text_record.get_height()) // 2
+                )
+            )
         
         button_dropdown_alpha = fade_in(button_dropdown,button_dropdown_visible,button_dropdown_surface,button_dropdown_alpha,active_button2,"dropdown",button_width*2.5,button_height,option)
 

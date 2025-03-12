@@ -9,7 +9,7 @@ scipy
 
 # MIDI Processing & Music Libraries
 mido
-rtmidi
+python-rtmidi
 music21
 pretty_midi
 pypianoroll
