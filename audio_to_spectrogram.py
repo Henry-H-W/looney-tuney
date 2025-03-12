@@ -3,9 +3,7 @@ import sys
 import time
 import random
 import threading
-from collections import deque
 import cmasher as cmr  # Import cmasher for additional colormaps
-import simpleaudio as sa
 
 import numpy as np
 import pygame
@@ -17,6 +15,7 @@ from scipy.ndimage import gaussian_filter
 
 from generateTTE import generate_music
 from midi_to_audio import convert_midi
+from delete import delete_generated_files
 import rtmidi
 from mido import Message, MidiFile, MidiTrack
 
@@ -190,12 +189,8 @@ def play_audio():
     mixer.quit()  # Ensures the file is no longer locked
     audio_finished = True
 
-    # Delete temp file after playback
-    try:
-        os.remove(temp_file)
-        print(f"Deleted temporary file: {temp_file}")
-    except Exception as e:
-        print(f"Error deleting {temp_file}: {e}")
+    # Delete temp files after playback
+    delete_generated_files()
 
 # Define dropdown menu options
 dropdown_options = ["DeepMind 12"]
