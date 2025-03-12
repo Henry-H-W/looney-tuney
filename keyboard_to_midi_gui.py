@@ -3,7 +3,7 @@ import pygame
 import rtmidi
 import random
 import colorsys
-from game import Firework  # Make sure game.py is in the same directory or python path
+from explosion_animation import Firework  # Make sure game.py is in the same directory or python path
 
 def main():
     # --- 1) Initialize Pygame and the MIDI system ---

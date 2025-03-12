@@ -17,7 +17,7 @@ from scipy.ndimage import gaussian_filter
 # from generateTTE import generate_music
 from generate import generate
 from midi_to_audio import convert_midi
-from delete import delete_generated_files
+from delete_files import delete_generated_files
 import rtmidi
 from mido import Message, MidiFile, MidiTrack
 
