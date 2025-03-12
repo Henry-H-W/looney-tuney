@@ -4,7 +4,6 @@ import time
 import random
 import threading
 import cmasher as cmr  # Import cmasher for additional colormaps
-import simpleaudio as sa
 
 import numpy as np
 import pygame
@@ -224,18 +223,18 @@ def draw_dropdown_menu():
     global dropdown_rects
     # Draw a background for the dropdown menu
     pygame.draw.rect(screen, WHITE, pygame.Rect(button_dropdown.x, button_dropdown.y + button_height, button_dropdown.width, dropdown_height * len(dropdown_options)))
-    
+
     dropdown_rects = []  # Clear previous option rectangles
-    
+
     # Draw each option in the dropdown menu
     for i, option in enumerate(dropdown_options):
         rect = pygame.Rect(button_dropdown.x, button_dropdown.y + button_height + i * dropdown_height, button_dropdown.width, dropdown_height)
         dropdown_rects.append(rect)
-        
+
         # Draw the option box with a black outline
         pygame.draw.rect(screen, BLACK, rect)  # Draw black border
         pygame.draw.rect(screen, WHITE, rect, 1)  # Add a white border (2-pixel width)
-        
+
         # Render the text and center it inside the option box
         text = buttonfont.render(option, True, WHITE)
         screen.blit(text, (65, rect.y + (rect.height - text.get_height()) // 2))
@@ -280,7 +279,7 @@ def process_audio_and_start():
     # generate_music(64, 'generated_output.mid') OLD GENERATION METHOD
     generate('generated_output.mid')
     convert_midi()
-    
+
     # Reload the new audio file (assumes it’s now the most recent file)
     audio_files = [f for f in os.listdir() if f.endswith((".wav", ".mp3"))]
     audio_path = max(audio_files, key=os.path.getctime)
@@ -293,27 +292,27 @@ def process_audio_and_start():
     samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
     if np.max(np.abs(samples)) > 0:
         samples /= np.max(np.abs(samples))
-    
+
     # Compute waterfall dimensions with the new sample_rate:
     WATERFALL_FRAMES = int(WATERFALL_DURATION * sample_rate / chunk_size)
     FREQ_VECTOR = np.fft.rfftfreq(N_FFT, d=1/sample_rate)
     freq_mask = FREQ_VECTOR <= FREQ_LIMIT
     FREQ_VECTOR = FREQ_VECTOR[freq_mask]
     num_freq_bins = len(FREQ_VECTOR)
-    
+
     # Reinitialize the waterfall image data
     waterfall_image_data = np.full((num_freq_bins, WATERFALL_FRAMES), -10, dtype=np.float32)
-    
+
     # Reset playback globals
     global current_index, start_time, audio_finished, spectrogram_active
     current_index = 0
     # start_time = time.time()
     audio_finished = False
-    
+
     # Start audio playback in a new thread
     audio_thread = threading.Thread(target=play_audio, daemon=True)
     audio_thread.start()
-    
+
     # Enable the spectrogram updates
     spectrogram_active = True
 
@@ -329,6 +328,7 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN:  # Check if a key was pressed
             if event.key == pygame.K_ESCAPE:  # If ESCAPE key is pressed
+                print("Quitting")
                 running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if button1_1.collidepoint(event.pos):
@@ -342,7 +342,6 @@ while running:
             elif button_generate.collidepoint(event.pos) and active_button1 == "generation":
                 active_button2 = "generate"
                 print("Generate button Clicked")
-                generate_music(64, 'generated_output.mid')
                 # Start processing in a separate thread
                 processing_thread = threading.Thread(target=process_audio_and_start, daemon=True)
                 processing_thread.start()
@@ -404,7 +403,7 @@ while running:
         windowed = np.hanning(len(data)) * data
         X = np.abs(np.fft.rfft(windowed, n=N_FFT))[freq_mask]
         new_frame = np.log10(X + 1e-12)  # take log (avoid log(0))
-        
+
         # Scroll the waterfall image left by one column and add the new frame at the right
         waterfall_image_data = np.roll(waterfall_image_data, -1, axis=1)
         waterfall_image_data[:, -1] = new_frame
@@ -431,7 +430,7 @@ while running:
         # Create a pygame surface from the color image.
         surf_array = np.transpose(color_image, (1, 0, 2))
         spec_surface = pygame.surfarray.make_surface(surf_array)
-        
+
         # Scale the spectrogram surface to fill the window
         spec_surface = pygame.transform.scale(spec_surface, (window_width, window_height))
 
@@ -440,7 +439,7 @@ while running:
 
     # Overlay the PNG image
     screen.blit(overlay_image1, (0, 10))  # Change (100, 100) to position it differently
-    
+
     # Overlay text on top of the spectrogram
     text1 = boldfont.render("Welcome to MAiSTRO: The Classical Music Composition Model!", True, (255, 255, 255))
     screen.blit(text1, (50, 150))
@@ -478,7 +477,7 @@ while running:
                     button_record.y + (button_record.height - text_record.get_height()) // 2
                 )
             )
-        
+
         button_dropdown_alpha = fade_in(button_dropdown,button_dropdown_visible,button_dropdown_surface,button_dropdown_alpha,active_button2,"dropdown",button_width*2.5,button_height,option)
         button_generate_alpha = fade_in(button_generate,button_generate_visible,button_generate_surface,button_generate_alpha,active_button2,"generate",button_width,button_height,"Generate")
         button_record_alpha = fade_in(button_record,button_dropdown_visible,button_record_surface,button_record_alpha,active_button2,"record",button_width,button_height,"Record")
@@ -491,7 +490,7 @@ while running:
     # Render text
     text1 = buttonfont.render("Generation", True, text1_color)
     text2 = buttonfont.render("Collaboration", True, text2_color)
-   
+
     text4_surface = render_fading_text("Connect your MIDI device",font,WHITE,button_dropdown_alpha)
     screen.blit(text4_surface, (50, 350))
 
