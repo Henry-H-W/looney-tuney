@@ -14,7 +14,8 @@ from pydub import AudioSegment
 from pydub.playback import play
 from scipy.ndimage import gaussian_filter
 
-from generateTTE import generate_music
+# from generateTTE import generate_music
+from generate import generate
 from midi_to_audio import convert_midi
 
 # ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
@@ -196,7 +197,8 @@ def fade_in(button,button_visible,button_surface,button_alpha,active_button,acti
 
 def process_audio_and_start():
     # Generate and convert MIDI (heavy processing)
-    generate_music(64, 'generated_output.mid')
+    # generate_music(64, 'generated_output.mid') OLD GENERATION METHOD
+    generate('generated_output.mid')
     convert_midi()
     
     # Reload the new audio file (assumes it’s now the most recent file)
@@ -283,7 +285,8 @@ while running:
                         print(f"Dropdown Option {i + 1} selected")
                         dropdown_active = False  # Close the dropdown after selecting an option
                         active_button2 = None
-               
+
+            screen.fill(BLACK)
     # Only update waterfall if playback has started
     if start_time is not None and spectrogram_active:
         # Compute elapsed time (only used while audio is active)

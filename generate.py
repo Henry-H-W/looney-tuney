@@ -18,6 +18,7 @@ from keras.layers import Dense, Dropout, LSTM, Activation, Bidirectional, Flatte
 from keras import utils  # utilities for handling labels, models, and training
 from keras.callbacks import ModelCheckpoint  # to save the best model during training
 from keras_self_attention import SeqSelfAttention  # self-attention mechanism for sequence models
+import tensorflow as tf
 
 # note: ensure that you have `keras_self_attention` installed before using it.
 # you can install it using: pip install keras-self-attention
@@ -27,7 +28,12 @@ from keras_self_attention import SeqSelfAttention  # self-attention mechanism fo
 # import keras
 # print(keras.__version__)
 
-def generate():
+# Allocate about 70% of free memory
+gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.70)
+
+sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
+
+def generate(midi_filepath: str):
     """ generate a piano midi file """
 
     # load the notes that were used to train the model
@@ -50,7 +56,7 @@ def generate():
     prediction_output = generate_notes(model, network_input, pitchnames, n_vocab)
 
     # convert the generated sequence of notes into a midi file
-    create_midi(prediction_output)
+    create_midi(prediction_output, midi_filepath)
 
 def prepare_sequences_output(notes, pitchnames, n_vocab):
     """ prepare the sequences used by the neural network for generating music """
@@ -125,14 +131,14 @@ def create_network_add_weights(network_input, n_vocab):
     # this allows the model to generate music based on previously learned patterns
 
     # find the most recent MIDI file in the directory
-    model_weights = [f for f in os.listdir() if f.endswith(".keras")]
+    model_weights = [f for f in os.listdir() if f.endswith(".h5")]
     if not model_weights:
         raise FileNotFoundError("No model weights files found in the directory.")
 
     # get the most recently created/modified MIDI file
     latest_model_weights = max(model_weights, key=os.path.getctime)
 
-    print(f"Processing most recent keras file: {latest_model_weights}")
+    print(f"Processing most recent h5 file: {latest_model_weights}")
     model.load_weights(latest_model_weights)
 
     return model  # return the model with loaded weights
@@ -180,7 +186,7 @@ def generate_notes(model, network_input, pitchnames, n_vocab):
 
     return prediction_output  # return the list of generated notes
 
-def create_midi(prediction_output):
+def create_midi(prediction_output, filename: str):
     """ convert the output from the prediction to notes and create a midi file """
 
     offset = 0  # keeps track of time to avoid overlapping notes
@@ -213,6 +219,7 @@ def create_midi(prediction_output):
             new_rest = note.Rest()  # create a rest without passing "rest" as an argument
             new_rest.duration.quarterLength = convert_to_float(duration)  # set the duration explicitly
             # if a rest is greater than a bar for some reason, shorten it to a bar
+            rest_duration = convert_to_float(duration)
             if rest_duration > 4.0:
                 rest_duration = 4.0
             new_rest.offset = offset  # set the timing offset
@@ -233,8 +240,9 @@ def create_midi(prediction_output):
     midi_stream = stream.Stream(output_notes)
 
     # write the midi stream to a file
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    midi_filename = f"generated_music_{timestamp}.mid"
+    # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    midi_filename = f"{filename}"
+
     midi_stream.write('midi', fp=midi_filename)
     print(f"Generated MIDI saved as {midi_filename}")
 
@@ -255,4 +263,4 @@ def convert_to_float(frac_str):
         return whole - frac if whole < 0 else whole + frac  # return the final float value
 
 # run the generator to create a new midi file
-generate()
+# generate()
