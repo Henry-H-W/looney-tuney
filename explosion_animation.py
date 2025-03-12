@@ -5,7 +5,7 @@ game.py - main in-game scene classes
 import os
 import pygame
 from pygame.locals import *
-from gamedirector import *
+from explosion_director import *
 
 import random
 
