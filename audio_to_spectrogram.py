@@ -4,6 +4,7 @@ import time
 import random
 import threading
 import cmasher as cmr  # Import cmasher for additional colormaps
+import simpleaudio as sa
 
 import numpy as np
 import pygame
@@ -13,7 +14,8 @@ from pydub import AudioSegment
 from pydub.playback import play
 from scipy.ndimage import gaussian_filter
 
-from generateTTE import generate_music
+# from generateTTE import generate_music
+from generate import generate
 from midi_to_audio import convert_midi
 from delete_files import delete_generated_files
 import rtmidi
@@ -187,7 +189,7 @@ def play_audio():
 
     # Play the new file
     mixer.music.play()
-    
+
     # Set the playback start time
     start_time = time.time()
 
@@ -266,7 +268,7 @@ def fade_in(button, button_visible, button_surface, button_alpha, active_button,
     text1_surface = render_fading_text(text, buttonfont, colour, button_alpha)
 
     # Center text inside the button surface
-    button_surface.blit(text1_surface, ((button_width - text1_surface.get_width()) // 2, 
+    button_surface.blit(text1_surface, ((button_width - text1_surface.get_width()) // 2,
                                         (button_height - text1_surface.get_height()) // 2))
 
     # Blit the transparent button onto the main screen
@@ -286,6 +288,8 @@ def fade_in(button, button_visible, button_surface, button_alpha, active_button,
 
 def process_audio_and_start():
     # Generate and convert MIDI (heavy processing)
+    # generate_music(64, 'generated_output.mid') OLD GENERATION METHOD
+    generate('generated_output.mid')
     convert_midi()
     
     # Reload the new audio file (assumes it’s now the most recent file)
@@ -389,7 +393,7 @@ while running:
                     recording_thread.start()
                 else:
                     print("No valid MIDI port selected.")
-    
+
     screen.fill(BLACK)
 
     # Only update waterfall if playback has started
@@ -476,9 +480,9 @@ while running:
         text1_color = WHITE  # White text
 
     if active_button1 == "collaboration":
-        if (selected_port_index is not None 
+        if (selected_port_index is not None
             and dropdown_options[selected_port_index] != "No MIDI devices found"):
-            
+
             # Draw the Record button
             pygame.draw.rect(screen, WHITE, button_record)  # White background
             pygame.draw.rect(screen, BLACK, button_record, 2)  # Black border
