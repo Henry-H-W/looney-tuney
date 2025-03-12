@@ -17,9 +17,6 @@ Ensure you have the necessary dependencies installed before running the project.
 pip install -r requirements.txt
 ```
 
-Install and extract Fluidsynth under C:/tools/:
-https://github.com/FluidSynth/fluidsynth/releases/tag/v2.4.3 
-
 ## Getting Started: Training the Model
 ### 1. Prepare the Dataset
 Ensure that you have your MIDI dataset inside the `dataset/` directory (make sure the files end with .mid). If some of your midi files contain multiple tracks / instruments, `midi_dataset_processing.py` can help condense everything into one track.
@@ -77,6 +74,8 @@ Which uses the following scripts:
 - `midi_to_audio.py` records the audible file in 120bpm. This means, if the input midi is intended to be played with another bpm, the playbck may not sound correct.
 - `audio_to_spectrogram.py` produces a spectrogram of any wav or mp3 file.
 - `audio_to_spectrogram.py` has GUI components that use the <a href="https://fonts.google.com/specimen/Lato">Lato Font Family</a>. Please install it or replace the font with one that is available on your device.
+- You need Fluidsynth to have output played from the application. Install and extract Fluidsynth under C:/tools/:
+https://github.com/FluidSynth/fluidsynth/releases/tag/v2.4.3 
 
 ## References
 - <a href="https://medium.com/@alexissa122/generating-original-classical-music-with-an-lstm-neural-network-and-attention-abf03f9ddcb4">Generating Original Classical Music with an LSTM Neural Network and Attention</a>
