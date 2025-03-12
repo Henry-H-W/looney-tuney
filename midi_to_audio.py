@@ -5,24 +5,27 @@ import soundfile as sf
 import numpy as np
 import pretty_midi
 
-def convert_midi():
+def convert_midi(filename: str):
     # Define sample rate for better audio quality
     sample_rate = 44100
     time_scaling_factor = 1.225  # Slow down factor
 
     # Find the most recent MIDI file in the directory
-    midi_files = [f for f in os.listdir() if f.endswith(".mid")]
+    # midi_files = [f for f in os.listdir() if f.endswith(".mid")]
+    midi_files = filename + ".mid"
     if not midi_files:
         raise FileNotFoundError("No MIDI files found in the directory.")
 
-    # Get the most recently created/modified MIDI file
-    latest_midi = max(midi_files, key=os.path.getctime)
-    original_file_name = os.path.splitext(latest_midi)[0]
+    print(midi_files)
 
-    print(f"Processing most recent MIDI file: {latest_midi}")
+    # Get the most recently created/modified MIDI file
+    # latest_midi = max([midi_files], key=os.path.getctime)
+    # original_file_name = os.path.splitext(latest_midi)[0]
+
+    print(f"Processing most recent MIDI file: {midi_files}")
 
     # Load the MIDI file into a multitrack object
-    multitrack = read(latest_midi)
+    multitrack = read(midi_files)
 
     # Convert the multitrack MIDI to PrettyMIDI format
     pm = to_pretty_midi(multitrack)
@@ -76,10 +79,10 @@ def convert_midi():
     wave = new_pm.fluidsynth(sf2_path=soundfont_path, fs=sample_rate)
 
     # Save the audio as a WAV file
-    sf.write("output.wav", wave, sample_rate)
+    sf.write(filename + ".wav", wave, sample_rate)
 
     # Load the audio file into pydub for further processing
-    segment = AudioSegment.from_wav("output.wav")
+    segment = AudioSegment.from_wav(filename + ".wav")
 
     # Apply a low-pass filter to reduce high-frequency sharpness
     filtered_segment = segment.low_pass_filter(500)

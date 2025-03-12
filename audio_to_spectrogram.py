@@ -20,7 +20,7 @@ from delete_files import delete_generated_files
 import rtmidi
 from mido import Message, MidiFile, MidiTrack
 from collaborateTTE import extend_midi
-
+from collaborate import generate_collab
 # ------- Helper functions for visual aids for keyboard input ----------
 def list_midi_ports():
     """Return a list of available MIDI input port names."""
@@ -69,15 +69,16 @@ def do_record():
     is_recording = False
     print("Recording finished. Check recording.mid!")
     # Find the most recent MIDI file in the directory
-    midi_files = [f for f in os.listdir() if f.endswith(".mid")]
-    if not midi_files:
-        raise FileNotFoundError("No MIDI files found in the directory.")
+    # midi_files = [f for f in os.listdir() if f.endswith(".mid")]
+    # if not midi_files:
+    #     raise FileNotFoundError("No MIDI files found in the directory.")
 
     # Get the most recently created/modified MIDI file
-    latest_midi = max(midi_files, key=os.path.getctime)
-    print(f"Extending MIDI file: {latest_midi}")
+    # latest_midi = max(midi_files, key=os.path.getctime)
+    # print(f"Extending MIDI file: {latest_midi}")
 
-    extend_midi(latest_midi, 'extended_output.mid', additional_intervals=30)
+    # extend_midi('recording.mid', 'collab_output.mid', additional_intervals=30)
+    generate_collab()
 
 # ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
 def generatePgColormap(cm_name):
@@ -175,9 +176,9 @@ rgb_lut = lut[:, :3]  # use only R,G,B channels
 # ----- Audio Playback Globals -----
 start_time = None  # will be set when playback starts
 
-def play_audio():
+def play_audio(filename: str):
     global start_time, audio_finished
-    temp_file = "temp_output.wav"
+    temp_file = filename + ".wav"
 
     # Export the new audio
     audio.export(temp_file, format="wav")
@@ -202,7 +203,7 @@ def play_audio():
     audio_finished = True
 
     # Delete temp files after playback
-    delete_generated_files()
+    # delete_generated_files()
 
 # Define dropdown menu options
 dropdown_options = ["DeepMind 12"]
@@ -285,18 +286,18 @@ def fade_in(button, button_visible, button_surface, button_alpha, active_button,
 
     return button_alpha
 
-def process_audio_and_start():
+def process_audio_and_start(filename: str):
     # Generate and convert MIDI (heavy processing)
     # generate_music(64, 'generated_output.mid') OLD GENERATION METHOD
-    generate('generated_output.mid')
-    convert_midi()
+    # generate('generated_output.mid')
+    convert_midi(filename,)
     
     # Reload the new audio file (assumes it’s now the most recent file)
-    audio_files = [f for f in os.listdir() if f.endswith((".wav", ".mp3"))]
-    audio_path = max(audio_files, key=os.path.getctime)
-    file_ext = os.path.splitext(audio_path)[1][1:]
+    # audio_files = [f for f in os.listdir() if f.endswith((".wav", ".mp3"))]
+    audio_file = filename + ".wav"
+    file_ext = os.path.splitext(audio_file)[1][1:]
     global audio, sample_rate, samples, WATERFALL_FRAMES, FREQ_VECTOR, freq_mask, num_freq_bins, waterfall_image_data
-    audio = AudioSegment.from_file(audio_path, format=file_ext).set_channels(1)
+    audio = AudioSegment.from_file(audio_file, format=file_ext).set_channels(1)
     sample_rate = audio.frame_rate
 
     # Convert audio samples to a normalized numpy array
@@ -321,7 +322,7 @@ def process_audio_and_start():
     audio_finished = False
     
     # Start audio playback in a new thread
-    audio_thread = threading.Thread(target=play_audio, daemon=True)
+    audio_thread = threading.Thread(target=play_audio, args=(filename,), daemon=True)
     audio_thread.start()
     
     # Enable the spectrogram updates
@@ -353,7 +354,10 @@ while running:
                 active_button2 = "generate"
                 print("Generate button Clicked")
                 # Start processing in a separate thread
-                processing_thread = threading.Thread(target=process_audio_and_start, daemon=True)
+                def generate_midi():
+                    generate('generated_output.mid')
+                    process_audio_and_start('generated_output',)
+                processing_thread = threading.Thread(target=generate_midi, daemon=True)
                 processing_thread.start()
             elif button1_2.collidepoint(event.pos):
                 print("Collaboration button clicked!")
@@ -384,7 +388,7 @@ while running:
                     print("Starting MIDI recording...")
                     def recording_and_processing():
                         do_record()  # Wait for recording to complete
-                        process_audio_and_start()  # Start audio processing AFTER recording finishes
+                        process_audio_and_start("collab_output",)  # Start audio processing AFTER recording finishes
 
                     # Start the combined function in a separate thread
                     recording_thread = threading.Thread(target=recording_and_processing, daemon=True)

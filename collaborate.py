@@ -19,6 +19,7 @@ from keras.layers import Dense, Dropout, LSTM, Activation, Bidirectional, Flatte
 from keras import utils  # utilities for handling labels, models, and training
 from keras.callbacks import ModelCheckpoint  # to save the best model during training
 from keras_self_attention import SeqSelfAttention  # self-attention mechanism for sequence models
+import tensorflow as tf
 
 # note: ensure that you have `keras_self_attention` installed before using it.
 # you can install it using: pip install keras-self-attention
@@ -28,7 +29,12 @@ from keras_self_attention import SeqSelfAttention  # self-attention mechanism fo
 # import keras
 # print(keras.__version__)
 
-def generate():
+# Allocate about 70% of free memory
+gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.70)
+
+sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
+
+def generate_collab():
     """ generate a piano midi file """
 
     # load the notes that were used to train the model
@@ -126,14 +132,14 @@ def create_network_add_weights(network_input, n_vocab):
     # this allows the model to generate music based on previously learned patterns
 
     # find the most recent MIDI file in the directory
-    model_weights = [f for f in os.listdir() if f.endswith(".keras")]
+    model_weights = [f for f in os.listdir() if f.endswith(".h5")]
     if not model_weights:
         raise FileNotFoundError("No model weights files found in the directory.")
 
     # get the most recently created/modified MIDI file
     latest_model_weights = max(model_weights, key=os.path.getctime)
 
-    print(f"Processing most recent keras file: {latest_model_weights}")
+    print(f"Processing most recent h5 file: {latest_model_weights}")
     model.load_weights(latest_model_weights)
 
     return model  # return the model with loaded weights
@@ -145,16 +151,18 @@ def get_seed_note_from_latest_midi():
     If the last element is a chord, take the first note of the chord.
     """
     # Find all .mid files
-    midi_files = glob.glob("*.mid")
-    if not midi_files:
-        raise FileNotFoundError("No .mid files found in the working directory.")
-    
+    # midi_files = glob.glob("*.mid")
+    # if not midi_files:
+    #     raise FileNotFoundError("No .mid files found in the working directory.")
+
     # Get the most recent .mid file by creation/modification time
-    latest_midi = max(midi_files, key=os.path.getctime)
-    print(f"Using most recent midi file: {latest_midi} for seed note extraction")
+    # latest_midi = max(midi_files, key=os.path.getctime)
+
+    record_midi = "recording.mid"
+    print(f"Using most recent midi file: {record_midi} for seed note extraction")
     
     # Parse the MIDI file using music21
-    midi_stream = converter.parse(latest_midi)
+    midi_stream = converter.parse(record_midi)
     
     # Try to partition by instrument; if unavailable, use flat notes
     parts = instrument.partitionByInstrument(midi_stream)
@@ -296,13 +304,24 @@ def create_midi(prediction_output):
         # increase the offset by the (possibly capped) duration
         offset += (rest_duration if 'rest' in pattern else convert_to_float(duration))
 
+    # Load the existing MIDI file
+    original_stream = converter.parse("recording.mid")
+
     # create a midi stream from the generated notes and chords
     midi_stream = stream.Stream(output_notes)
 
+    # Create a new empty stream
+    merged_midi = stream.Stream()
+
+    # Append both MIDI files sequentially
+    merged_midi.append(original_stream.flat)
+    merged_midi.append(midi_stream.flat)
+
     # write the midi stream to a file with a timestamp
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    midi_filename = f"generated_music_{timestamp}.mid"
-    midi_stream.write('midi', fp=midi_filename)
+    # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # midi_filename = f"generated_music_{timestamp}.mid"
+    midi_filename = "collab_output.mid"
+    merged_midi.write('midi', fp=midi_filename)
     print(f"Generated MIDI saved as {midi_filename}")
 
 
@@ -322,4 +341,4 @@ def convert_to_float(frac_str):
         return whole - frac if whole < 0 else whole + frac  # return the final float value
 
 # run the generator to create a new midi file
-generate()
+# generate_collab()
