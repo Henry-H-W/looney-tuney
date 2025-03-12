@@ -118,6 +118,7 @@ button1_2 = pygame.Rect(250, 270, button_width, button_height)
 button_generate = pygame.Rect(50, 720, button_width, button_height)
 button_dropdown = pygame.Rect(50, 400, button_width*2.5, button_height)
 button_record = pygame.Rect(50, 650, button_width, button_height)
+button_collab_record = pygame.Rect(50, 650, button_width, button_height)
 
 # Track which button is active
 active_button1 = None  # Can be "generation" or "collaboration"

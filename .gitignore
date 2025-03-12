@@ -8,3 +8,10 @@ __pycache__/
 *.log
 *.tmp
 .DS_Store
+
+# Ignore specific generated files
+output.mid
+recording.mid
+generated_output.mid
+output.wav
+extended_output.mid
