@@ -105,41 +105,47 @@ def extend_midi(input_filepath: str, output_filepath: str, additional_intervals:
     delayed_right_hand_notes = []
     
     def add_one_interval(current_index=0, right_hand_shift: int = 0,
-                         current_velocity: int = 90, left_hand_shift: int = 0):
-        """Generates a musical interval based on extracted features and extends the piece."""
-        # Right-hand melody (delayed)
+                     current_velocity: int = 90, left_hand_shift: int = 0):
+        """
+        New version of add_one_interval based on generateTTE.py.
+        This replaces the original right-hand and left-hand generation code,
+        while using collaborateTTE's extended_stream and delayed_right_hand_notes.
+        """
+        # Parameters for the right-hand generation (from generateTTE)
+        note_duration = [4, 2, 1, 0.66]
+        number_of_notes = [2, 2, 8, 12]
+        
+        # Right-hand melody (with a delay as in collaborateTTE)
         current_index_for_the_right_hand = current_index + BAR_DELAY
+        current_note_duration_index = random.randint(0, len(note_duration) - 1)
+        current_number_of_notes = number_of_notes[current_note_duration_index]
+        current_duration = note_duration[current_note_duration_index]
         shift = right_hand_shift * OCTAVE_SHIFT
-        duration = random.choice(top_durations)
-    
-        if random.random() < 0.8:  # 80% chance to play a melody note
-            random_note = new_song_generator.correct_notes[random.randint(0, len(new_song_generator.correct_notes)-1)] + shift
-            my_note = note.Note(random_note, quarterLength=duration)
-            my_note.volume.velocity = current_velocity
-            delayed_right_hand_notes.append((current_index_for_the_right_hand, my_note))
-    
-        # Left-hand harmony (chordal support and bass movement)
-        sequence_of_notes = new_song_generator.baselines[random.randint(0, len(new_song_generator.baselines)-1)]
-    
-        # Ensure chords play every bar
-        if random.random() < 0.7:
-            chosen_chord = random.choice(new_song_generator.minor_chords)
-            simple_chord = chosen_chord[:3]
-            new_chord = chord.Chord(simple_chord)
-            new_chord.quarterLength = max(4, duration * 2)  # At least one bar long
-            new_chord.volume.velocity = 80
-            extended_stream.insert(current_index, new_chord)
-    
-        # Generate bassline (harmony)
-        for _ in range(8):  # Play 8 bass notes per measure
-            random_duration = random.choice([0.5, 1, 1.5, 2])
-            cur_note = sequence_of_notes[random.randint(0, len(sequence_of_notes) - 1)]
-    
-            new_note = note.Note(cur_note, quarterLength=random_duration)
-            new_note.volume.velocity = 70
-            extended_stream.insert(current_index, new_note)
-    
-            current_index += random_duration  # Move forward in time
+
+        for note_i in range(current_number_of_notes):
+            if random.randint(0, 8) % 7 != 0:
+                # Select a note from the full range of correct_notes
+                random_note = new_song_generator.correct_notes[random.randint(0, len(new_song_generator.correct_notes) - 1)] + shift
+                my_note = note.Note(random_note, quarterLength=current_duration + 1)
+                my_note.volume.velocity = current_velocity
+                delayed_right_hand_notes.append((current_index_for_the_right_hand, my_note))
+            current_index_for_the_right_hand += current_duration
+
+        # Left-hand generation (adopted from generateTTE)
+        sequence_of_notes = new_song_generator.baselines[random.randint(0, len(new_song_generator.baselines) - 1)]
+        for note_i in range(12):
+            durations = [4, 0.5, 1, 1.5, 2]  # possible note durations
+            random_duration = random.choice(durations)
+            if random.random() < 0.7:  # 70% chance for stepwise motion
+                cur_note = sequence_of_notes[(note_i + random.choice([-1, 0, 1])) % len(sequence_of_notes)]
+            else:  # 30% chance for a leap
+                cur_note = sequence_of_notes[random.randint(0, len(sequence_of_notes) - 1)]
+            if random.randint(0, 8) % 7 != 0:
+                new_note = note.Note(cur_note, quarterLength=random_duration)
+                new_note.volume.velocity = 70
+                extended_stream.insert(current_index, new_note)
+            current_index += 0.33  # small time step increment for left-hand notes
+
     
     # Find the last note's timestamp in the original stream
     last_offset = max(n.offset for n in original_stream.flat.notes)
