@@ -79,10 +79,10 @@ def convert_midi(filename: str):
     wave = new_pm.fluidsynth(sf2_path=soundfont_path, fs=sample_rate)
 
     # Save the audio as a WAV file
-    sf.write(filename + ".wav", wave, sample_rate)
+    sf.write(filename + "_unprocessed.wav", wave, sample_rate)
 
     # Load the audio file into pydub for further processing
-    segment = AudioSegment.from_wav(filename + ".wav")
+    segment = AudioSegment.from_wav(filename + "_unprocessed.wav")
 
     # Apply a low-pass filter to reduce high-frequency sharpness
     filtered_segment = segment.low_pass_filter(500)
@@ -93,5 +93,17 @@ def convert_midi(filename: str):
     # Normalize the audio to avoid overly loud or quiet sections
     filtered_segment = filtered_segment.normalize()
 
-    # Play the final processed audio
-    # playback.play(filtered_segment)
+    # Save the processed audio as a new WAV file
+    filtered_segment.export(filename + ".wav", format="wav")
+
+def main():
+    filename = input("Enter the MIDI filename (without extension): ").strip()
+    try:
+        convert_midi(filename)
+        print("Conversion completed successfully.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    main()
