@@ -358,7 +358,8 @@ while running:
                 # Start processing in a separate thread
                 def generate_midi():
                     generate('generated_output.mid')
-                    # generate_music(64, 'generated_output.mid') # provide the option of algorithmic generation
+                    # random_scale = random.randint(59, 70)  # random root note within a musical range
+                    # generate_music(random_scale, 'generated_output.mid') # provide the option of algorithmic generation
                     process_audio_and_start('generated_output',)
                 processing_thread = threading.Thread(target=generate_midi, daemon=True)
                 processing_thread.start()
