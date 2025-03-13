@@ -17,6 +17,7 @@ output.wav
 extended_output.mid
 generated_music_*.mid
 temp_output.wav
+tempCodeRunnerFile.py
 
 *.mid
 *.h5

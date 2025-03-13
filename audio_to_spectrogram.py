@@ -15,12 +15,14 @@ from scipy.ndimage import gaussian_filter
 
 # from generateTTE import generate_music
 from generate import generate
+from generateTTE import generate_music
 from midi_to_audio import convert_midi
 from delete_files import delete_generated_files
 import rtmidi
 from mido import Message, MidiFile, MidiTrack
 from collaborateTTE import extend_midi
 from collaborate import generate_collab
+
 # ------- Helper functions for visual aids for keyboard input ----------
 def list_midi_ports():
     """Return a list of available MIDI input port names."""
@@ -77,7 +79,7 @@ def do_record():
     # latest_midi = max(midi_files, key=os.path.getctime)
     # print(f"Extending MIDI file: {latest_midi}")
 
-    # extend_midi('recording.mid', 'collab_output.mid', additional_intervals=30)
+    # extend_midi('recording.mid', 'collab_output.mid', additional_intervals=30) # algorithmic extension
     generate_collab()
 
 # ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
@@ -356,6 +358,7 @@ while running:
                 # Start processing in a separate thread
                 def generate_midi():
                     generate('generated_output.mid')
+                    # generate_music(64, 'generated_output.mid') # provide the option of algorithmic generation
                     process_audio_and_start('generated_output',)
                 processing_thread = threading.Thread(target=generate_midi, daemon=True)
                 processing_thread.start()
