@@ -1,3 +1,4 @@
+import colorsys
 import os
 import sys
 import time
@@ -10,18 +11,20 @@ import pygame
 from pygame import mixer
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
+
 from pydub.playback import play
 from scipy.ndimage import gaussian_filter
 
 # from generateTTE import generate_music
 from generate import generate
-from generateTTE import generate_music
 from midi_to_audio import convert_midi
 from delete_files import delete_generated_files
 import rtmidi
 from mido import Message, MidiFile, MidiTrack
 from collaborateTTE import extend_midi
 from collaborate import generate_collab
+
+from explosion_animation import Firework
 
 # ------- Helper functions for visual aids for keyboard input ----------
 def list_midi_ports():
@@ -37,8 +40,8 @@ def record_midi(port_number, output_filename="recording.mid", duration=15):
     print(f"Recording MIDI for {duration} seconds on port {port_number}...")
 
     # Set up rtmidi
-    midi_in = rtmidi.MidiIn()
-    midi_in.open_port(port_number)
+    #midi_in = rtmidi.MidiIn()
+    #midi_in.open_port(port_number)
 
     # Create a new MidiFile with a single track
     midi_file = MidiFile()
@@ -330,6 +333,17 @@ def process_audio_and_start(filename: str):
     # Enable the spectrogram updates
     spectrogram_active = True
 
+# Initialize a list for fireworks
+fireworks = []
+hue_index = 0.0  # To cycle colors
+
+# Firework Parent Object for window reference
+class Parent:
+    pass
+
+parent_obj = Parent()
+parent_obj.window_size = (window_width, window_height)  # Ensure this matches your display size
+
 # ----- Main Loop -----
 running = True
 while running:
@@ -357,9 +371,9 @@ while running:
                 print("Generate button Clicked")
                 # Start processing in a separate thread
                 def generate_midi():
-                    # generate('generated_output.mid')
+                    generate('generated_output.mid')
                     random_scale = random.randint(59, 70)  # random root note within a musical range
-                    generate_music(random_scale, 'generated_output.mid') # provide the option of algorithmic generation
+                    # generate_music(random_scale, 'generated_output.mid') # provide the option of algorithmic generation
                     process_audio_and_start('generated_output',)
                 processing_thread = threading.Thread(target=generate_midi, daemon=True)
                 processing_thread.start()
@@ -370,6 +384,18 @@ while running:
                 text5_color = WHITE
                 button_dropdown_visible = True
                 button_generate_visible = False
+
+                # Initialize MIDI input for collaboration mode
+                midi_in = rtmidi.MidiIn()
+                ports = midi_in.get_ports()
+                if ports:
+                    selected_port_index = 0  # Default to the first available MIDI port
+                    midi_in.open_port(selected_port_index)
+                    print(f"Connected to MIDI device: {ports[selected_port_index]}")
+                else:
+                    print("No MIDI devices found.")
+                    selected_port_index = None
+
             elif button_dropdown.collidepoint(event.pos) and active_button1 == "collaboration":
                 active_button2 = "dropdown"
                 dropdown_active = not dropdown_active
@@ -399,6 +425,8 @@ while running:
                     recording_thread.start()
                 else:
                     print("No valid MIDI port selected.")
+
+
 
     screen.fill(BLACK)
 
@@ -489,6 +517,38 @@ while running:
         if (selected_port_index is not None
             and dropdown_options[selected_port_index] != "No MIDI devices found"):
 
+            # Check for MIDI input (only in "Collaboration" mode)
+            if active_button1 == "collaboration" and midi_in and selected_port_index is not None:
+                msg = midi_in.get_message()
+                if msg:
+                    message, delta_time = msg
+                    if len(message) >= 3:
+                        note = message[1]
+                        velocity = message[2]
+                        if velocity > 0:  # "Note On" event
+                            x_pos = (note - 36) / float(96 - 36)  # Map note to screen width
+                            x_pos = max(0.1, min(0.9, x_pos))  # Keep within bounds
+
+                            ## Generate a random grey shade (0 = black, 255 = white)
+                            grey_value = random.randint(50, 255)  # Avoiding 0 to keep them visible
+                            color = (grey_value, grey_value, grey_value)  # Shades of grey
+
+                            # Create and store a new firework
+                            #print("pew")
+                            fireworks.append(Firework(parent_obj, x_pos, color, intensity=1))
+
+                            # Cycle the hue for the next firework
+                            hue_index += 0.08
+                            if hue_index > 1.0:
+                                hue_index = 0.0
+
+            # Update all fireworks
+            for fw in fireworks:
+                fw.Update()
+            # D) Draw everything
+            screen.fill((0, 0, 0))  # black background
+            for fw in fireworks:
+                fw.Draw(screen)
             # Draw the Record button
             pygame.draw.rect(screen, WHITE, button_record)  # White background
             pygame.draw.rect(screen, BLACK, button_record, 2)  # Black border
