@@ -225,10 +225,22 @@ button_record_alpha = 0
 fade_in_speed = 50
 button_generate_visible = False
 button_dropdown_visible = False
+button_record_visible = False
 
 button_generate_surface = pygame.Surface((button_width, button_height), pygame.SRCALPHA)
 button_record_surface = pygame.Surface((button_width, button_height), pygame.SRCALPHA)
 button_dropdown_surface = pygame.Surface((button_width * 2.5, button_height), pygame.SRCALPHA)
+
+# Timer line settings
+LINE_WIDTH = button_width  # The full width the line should reach
+LINE_HEIGHT = 5  # Thickness of the line
+line_x = button_record.x # Start position
+line_y = button_record.y + button_height + 10  # Position under the button
+
+# Timer variables
+recording_active = False
+record_start_time = None
+recording_duration = 15  # 15 seconds
 
 def render_fading_text(text, font, color, alpha):
     text_surface = font.render(text, True, color)
@@ -335,8 +347,10 @@ while running:
                 dropdown_active = False
                 button_generate_visible = True
                 button_dropdown_visible = False
+                button_record_visible = False
             elif button_generate.collidepoint(event.pos) and active_button1 == "generation":
                 active_button2 = "generate"
+                button_record_visible = False
                 print("Generate button clicked")
                 def generate_midi():
                     # generate('generated_output.mid')
@@ -359,6 +373,8 @@ while running:
             elif button_record.collidepoint(event.pos) and active_button1 == "collaboration":
                 active_button2 = "record"
                 dropdown_active = False
+                recording_active = True
+                record_start_time = time.time()
                 print("Record button clicked!")
             if dropdown_active:
                 for i, rect in enumerate(dropdown_rects):
@@ -426,9 +442,10 @@ while running:
         pygame.draw.rect(screen, WHITE, button1_1)
         pygame.draw.rect(screen, WHITE, button1_1, 2)
         text1_color = BLACK
+
         button_generate_alpha = fade_in(button_generate, button_generate_visible, button_generate_surface, button_generate_alpha, active_button2, "generate", button_width, button_height, "Generate")
         button_dropdown_alpha = fade_in(button_dropdown, button_dropdown_visible, button_dropdown_surface, button_dropdown_alpha, active_button2, "dropdown", button_width * 2.5, button_height, option)
-        button_record_alpha = fade_in(button_record, button_dropdown_visible, button_record_surface, button_record_alpha, active_button2, "record", button_width, button_height, "Record")
+        button_record_alpha = fade_in(button_record, button_record_visible, button_record_surface, button_record_alpha, active_button2, "record", button_width, button_height, "Record")
     else:
         pygame.draw.rect(screen, BLACK, button1_1)
         pygame.draw.rect(screen, WHITE, button1_1, 2)
@@ -439,6 +456,15 @@ while running:
         pygame.draw.rect(screen, WHITE, button1_2, 2)
         text2_color = BLACK
 
+        if selected_port_index is not None and dropdown_options[selected_port_index] != "No MIDI devices found" and active_button1 == "collaboration":
+            button_record_visible = True
+        else:
+            button_record_visible = False
+
+        button_dropdown_alpha = fade_in(button_dropdown, button_dropdown_visible, button_dropdown_surface, button_dropdown_alpha, active_button2, "dropdown", button_width * 2.5, button_height, option)
+        button_generate_alpha = fade_in(button_generate, button_generate_visible, button_generate_surface, button_generate_alpha, active_button2, "generate", button_width, button_height, "Generate")
+        button_record_alpha = fade_in(button_record, button_record_visible, button_record_surface, button_record_alpha, active_button2, "record", button_width, button_height, "Record")
+        
         if selected_port_index is not None and dropdown_options[selected_port_index] != "No MIDI devices found":
             # Poll the global MIDI input for messages
             if midi_in and selected_port_index is not None:
@@ -473,16 +499,7 @@ while running:
                     fw.Update()
                 for fw in fireworks:
                     fw.Draw(screen)
-            pygame.draw.rect(screen, WHITE, button_record)
-            pygame.draw.rect(screen, BLACK, button_record, 2)
-            text_record = buttonfont.render("Record", True, BLACK)
-            screen.blit(text_record, (
-                button_record.x + (button_record.width - text_record.get_width()) // 2,
-                button_record.y + (button_record.height - text_record.get_height()) // 2
-            ))
-        button_dropdown_alpha = fade_in(button_dropdown, button_dropdown_visible, button_dropdown_surface, button_dropdown_alpha, active_button2, "dropdown", button_width * 2.5, button_height, option)
-        button_generate_alpha = fade_in(button_generate, button_generate_visible, button_generate_surface, button_generate_alpha, active_button2, "generate", button_width, button_height, "Generate")
-        button_record_alpha = fade_in(button_record, button_dropdown_visible, button_record_surface, button_record_alpha, active_button2, "record", button_width, button_height, "Record")
+            
     else:
         pygame.draw.rect(screen, BLACK, button1_2)
         pygame.draw.rect(screen, WHITE, button1_2, 2)
@@ -498,6 +515,17 @@ while running:
     if dropdown_active:
         draw_dropdown_menu()
 
+    if recording_active:
+        elapsed_time = time.time() - record_start_time
+        if elapsed_time > recording_duration:
+            recording_active = False  # Stop expanding after 15 seconds
+        else:
+            # Calculate how much of the line should be drawn
+            progress = min(elapsed_time / recording_duration, 1)  # Clamp to [0, 1]
+            line_length = int(progress * LINE_WIDTH)  # Scale line
+
+            pygame.draw.rect(screen, WHITE, (line_x, line_y, line_length, LINE_HEIGHT))  # Draw progress line
+    
     pygame.display.flip()
     clock.tick(30)
 
