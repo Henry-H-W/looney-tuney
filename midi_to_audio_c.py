@@ -101,7 +101,7 @@ def convert_midi_c(filename: str):
 def main():
     filename = input("Enter the MIDI filename (without extension): ").strip()
     try:
-        convert_midi(filename)
+        convert_midi_c(filename)
         print("Conversion completed successfully.")
     except Exception as e:
         print(f"Error: {e}")

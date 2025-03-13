@@ -154,7 +154,7 @@ def extend_midi(input_filepath: str, output_filepath: str, additional_intervals:
     # Generate additional music based on detected key, rhythm, and harmony
     for i in range(additional_intervals):
         add_one_interval(
-            current_index=last_offset + 4 * i,
+            current_index=last_offset + 1 + 4 * i,
             right_hand_shift=random.randint(-1, 1),
             current_velocity=random.randint(80, 110),
             left_hand_shift=random.randint(-3, -1),
