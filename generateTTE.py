@@ -7,7 +7,7 @@ def generate_music(scale: int, filepath: str):
     new_song_generator = MinorMusicGenerator(scale)
     myStream = stream.Stream()
 
-    intervals = 30
+    intervals = 15
     note_duration = [4, 2, 1, 0.66]
     number_of_notes = [2, 2, 8, 12]
 

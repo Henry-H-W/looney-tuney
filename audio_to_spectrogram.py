@@ -79,7 +79,7 @@ def do_record():
     # latest_midi = max(midi_files, key=os.path.getctime)
     # print(f"Extending MIDI file: {latest_midi}")
 
-    # extend_midi('recording.mid', 'collab_output.mid', additional_intervals=30) # algorithmic extension
+    # extend_midi('recording.mid', 'collab_output.mid', additional_intervals=15) # algorithmic extension
     generate_collab()
 
 # ----- Utility: Convert a Matplotlib colormap to a lookup table for pygame -----
@@ -357,9 +357,9 @@ while running:
                 print("Generate button Clicked")
                 # Start processing in a separate thread
                 def generate_midi():
-                    generate('generated_output.mid')
-                    # random_scale = random.randint(59, 70)  # random root note within a musical range
-                    # generate_music(random_scale, 'generated_output.mid') # provide the option of algorithmic generation
+                    # generate('generated_output.mid')
+                    random_scale = random.randint(59, 70)  # random root note within a musical range
+                    generate_music(random_scale, 'generated_output.mid') # provide the option of algorithmic generation
                     process_audio_and_start('generated_output',)
                 processing_thread = threading.Thread(target=generate_midi, daemon=True)
                 processing_thread.start()

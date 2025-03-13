@@ -4,7 +4,7 @@ import random
 import collections
 import os
 
-def extend_midi(input_filepath: str, output_filepath: str, additional_intervals: int = 30):
+def extend_midi(input_filepath: str, output_filepath: str, additional_intervals: int = 15):
     OCTAVE_SHIFT = 12
     BAR_DELAY = 4  # 3 bars delay (assuming 4/4 time)
 
@@ -118,4 +118,4 @@ if __name__ == '__main__':
     latest_midi = max(midi_files, key=os.path.getctime)
     print(f"Extending MIDI file: {latest_midi}")
 
-    extend_midi(latest_midi, 'extended_output.mid', additional_intervals=30)
+    extend_midi(latest_midi, 'extended_output.mid', additional_intervals=15)
