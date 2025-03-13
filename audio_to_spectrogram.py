@@ -287,9 +287,21 @@ def process_audio_and_start(filename: str):
     FREQ_VECTOR = FREQ_VECTOR[freq_mask]
     num_freq_bins = len(FREQ_VECTOR)
     waterfall_image_data = np.full((num_freq_bins, WATERFALL_FRAMES), -10, dtype=np.float32)
-    global current_index, start_time, audio_finished, spectrogram_active
+    global current_index, start_time, audio_finished, spectrogram_active, rgb_lut
     current_index = 0
     audio_finished = False
+
+    # --- Pick a new colormap each time ---
+    selected_colormap = random.choice(COLORMAPS)
+    print(f"Selected Colormap: {selected_colormap}")
+    if selected_colormap.startswith("cmr."):
+        # Get the colormap function from cmasher
+        selected_colormap = getattr(cmr, selected_colormap.split(".")[1])
+        lut = generatePgColormap(selected_colormap)
+    else:
+        lut = generatePgColormap(selected_colormap)
+    rgb_lut = lut[:, :3]
+
     audio_thread = threading.Thread(target=play_audio, args=(filename,), daemon=True)
     audio_thread.start()
     spectrogram_active = True
