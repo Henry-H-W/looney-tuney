@@ -486,9 +486,14 @@ while running:
         text1_color = WHITE  # White text
 
     if active_button1 == "collaboration":
+        
+        pygame.draw.rect(screen, WHITE, button1_2)  # White background
+        pygame.draw.rect(screen, WHITE, button1_2, 2)  # Border
+        text2_color = BLACK  # Black text
+
         if (selected_port_index is not None
             and dropdown_options[selected_port_index] != "No MIDI devices found"):
-
+            
             # Draw the Record button
             pygame.draw.rect(screen, WHITE, button_record)  # White background
             pygame.draw.rect(screen, BLACK, button_record, 2)  # Black border
