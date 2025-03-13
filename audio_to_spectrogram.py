@@ -15,7 +15,8 @@ from scipy.ndimage import gaussian_filter
 
 from generate import generate
 from generateTTE import generate_music
-from midi_to_audio import convert_midi
+from midi_to_audio_g import convert_midi_g
+from midi_to_audio_c import convert_midi_c
 from delete_files import delete_generated_files
 from collaborateTTE import extend_midi
 from collaborate import generate_collab
@@ -31,6 +32,7 @@ selected_port_index = None
 # At the top, define an additional global flag:
 recording_finished = False
 processing_started = False
+request = None
 
 # Variables for recording incoming MIDI messages
 is_recording = False
@@ -63,7 +65,7 @@ def start_recording(duration=15):
     MIDI input instance. After recording, write the messages to a MIDI file
     and process them.
     """
-    global recording_finished, is_recording, recorded_midi_messages, recording_start_time
+    global recording_finished, is_recording, recorded_midi_messages, recording_start_time, request
     recorded_midi_messages = []
     recording_start_time = None
     is_recording = True
@@ -100,7 +102,7 @@ def start_recording(duration=15):
 
     # Once collab output is created, signal that fireworks should stop updating.
     recording_finished = True
-
+    request = 'c'
     process_audio_and_start('collab_output')
 
 
@@ -284,7 +286,11 @@ def fade_in(button, button_visible, button_surface, button_alpha, active_button,
     return button_alpha
 
 def process_audio_and_start(filename: str):
-    convert_midi(filename)
+    print("request: " + request)
+    if request == 'g':
+        convert_midi_g(filename)
+    else:
+        convert_midi_c(filename)
     audio_file = filename + ".wav"
     file_ext = os.path.splitext(audio_file)[1][1:]
     global audio, sample_rate, samples, WATERFALL_FRAMES, FREQ_VECTOR, freq_mask, num_freq_bins, waterfall_image_data
@@ -353,9 +359,11 @@ while running:
                 button_record_visible = False
                 print("Generate button clicked")
                 def generate_midi():
-                    # generate('generated_output.mid')
+                    # generate('generated_output.mid') # ai generation
                     random_scale = random.randint(59, 70)  # random root note within a musical range
-                    generate_music(random_scale, 'generated_output.mid') # provide the option of algorithmic generation
+                    generate_music(random_scale, 'generated_output.mid') # algorithmic generation
+                    global request
+                    request = 'g'
                     process_audio_and_start('generated_output')
                 threading.Thread(target=generate_midi, daemon=True).start()
             elif button1_2.collidepoint(event.pos):
