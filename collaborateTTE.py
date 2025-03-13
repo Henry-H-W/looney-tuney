@@ -1,4 +1,5 @@
 from MinorMusicGenerator import MinorMusicGenerator
+import music21
 from music21 import converter, note, stream, chord
 import random
 import collections
@@ -16,7 +17,11 @@ def extend_midi(input_filepath: str, output_filepath: str, additional_intervals:
     extended_stream = original_stream.flat
 
     # --- Step 1: Key & Scale Detection ---
-    detected_key = original_stream.analyze('key')
+    try:
+        detected_key = original_stream.flatten().analyze('key')
+    except music21.analysis.discrete.DiscreteAnalysisException:
+        print("Key analysis failed, defaulting to C major")
+        detected_key = music21.key.Key('C')
     root_note = detected_key.tonic.midi
     mode = detected_key.mode  # 'major' or 'minor'
 

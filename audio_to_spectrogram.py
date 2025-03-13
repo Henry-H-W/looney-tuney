@@ -436,7 +436,7 @@ while running:
                     if len(message) >= 3:
                         note = message[1]
                         velocity = message[2]
-                        if message[0] == 149 and velocity > 0:
+                        if velocity > 0:
                             x_pos = (note - 36) / float(96 - 36)
                             x_pos = max(0.1, min(0.9, x_pos))
                             grey_value = random.randint(50, 255)
@@ -454,7 +454,9 @@ while running:
                                 relative_time = current_time - recording_start_time
                                 recorded_midi_messages.append((message, relative_time))
 
-            if not recording_finished:
+            if recording_finished:
+                fireworks.clear()
+            else:
                 for fw in fireworks:
                     fw.Update()
                 for fw in fireworks:
