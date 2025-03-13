@@ -23,6 +23,8 @@ from mido import Message, MidiFile, MidiTrack
 from collaborateTTE import extend_midi
 from collaborate import generate_collab
 
+from explosion_animation import Firework
+
 # ------- Helper functions for visual aids for keyboard input ----------
 def list_midi_ports():
     """Return a list of available MIDI input port names."""
@@ -357,9 +359,11 @@ while running:
                 print("Generate button Clicked")
                 # Start processing in a separate thread
                 def generate_midi():
-                    # generate('generated_output.mid')
-                    random_scale = random.randint(59, 70)  # random root note within a musical range
-                    generate_music(random_scale, 'generated_output.mid') # provide the option of algorithmic generation
+                    generate('generated_output.mid')
+
+                    # random_scale = random.randint(59, 70)  # random root note within a musical range
+                    # generate_music(random_scale, 'generated_output.mid') # provide the option of algorithmic generation
+
                     process_audio_and_start('generated_output',)
                 processing_thread = threading.Thread(target=generate_midi, daemon=True)
                 processing_thread.start()
