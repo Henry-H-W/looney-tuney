@@ -362,9 +362,10 @@ while running:
                     # generate('generated_output.mid') # ai generation
                     random_scale = random.randint(59, 70)  # random root note within a musical range
                     generate_music(random_scale, 'generated_output.mid') # algorithmic generation
-                    global request
+                    global request,active_button2
                     request = 'g'
                     process_audio_and_start('generated_output')
+                    active_button2 = None
                 threading.Thread(target=generate_midi, daemon=True).start()
             elif button1_2.collidepoint(event.pos):
                 print("Collaboration button clicked!")
@@ -415,7 +416,6 @@ while running:
         else:
             data = np.zeros(chunk_size, dtype=np.float32)
             recording_finished = False
-            active_button2 = None
 
         windowed = np.hanning(len(data)) * data
         X = np.abs(np.fft.rfft(windowed, n=N_FFT))[freq_mask]
@@ -527,6 +527,7 @@ while running:
         elapsed_time = time.time() - record_start_time
         if elapsed_time > recording_duration:
             recording_active = False  # Stop expanding after 15 seconds
+            active_button2 = None
         else:
             # Calculate how much of the line should be drawn
             progress = min(elapsed_time / recording_duration, 1)  # Clamp to [0, 1]
