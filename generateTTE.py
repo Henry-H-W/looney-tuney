@@ -9,7 +9,7 @@ def generate_music(scale: int, filepath: str):
 
     intervals = 15
     note_duration = [4, 2, 1, 0.66]
-    number_of_notes = [2, 2, 8, 12]
+    number_of_notes = [1, 2, 4, 8]
 
     volumes = [100, 50, 60, 60, 70, 80, 100, 80, 70, 60, 50, 50]
 
