@@ -97,8 +97,8 @@ def start_recording(duration=15):
     latest_midi = max(midi_files, key=os.path.getctime)
     print(f"Extending MIDI file: {latest_midi}")
 
-    extend_midi('recording.mid', 'collab_output.mid', additional_intervals=15) # algorithmic extension
-    # generate_collab() # ai extension
+    # extend_midi('recording.mid', 'collab_output.mid', additional_intervals=15) # algorithmic extension
+    generate_collab() # ai extension
 
     # Once collab output is created, signal that fireworks should stop updating.
     recording_finished = True
@@ -359,9 +359,9 @@ while running:
                 button_record_visible = False
                 print("Generate button clicked")
                 def generate_midi():
-                    # generate('generated_output.mid') # ai generation
-                    random_scale = random.randint(59, 70)  # random root note within a musical range
-                    generate_music(random_scale, 'generated_output.mid') # algorithmic generation
+                    generate('generated_output.mid') # ai generation
+                    # random_scale = random.randint(59, 70)  # random root note within a musical range
+                    # generate_music(random_scale, 'generated_output.mid') # algorithmic generation
                     global request,active_button2
                     request = 'g'
                     process_audio_and_start('generated_output')
